@@ -646,22 +646,23 @@ export default function LevantamentoEletrico() {
             style={{ background: "transparent", border: "none", borderBottom: "1px solid #4A4F54", color: "#F5F5F2", fontSize: 17, fontWeight: 600, padding: "4px 2px", minWidth: 160, maxWidth: 280 }}
           />
         </div>
-        <div style={{ display: "flex", gap: 18, alignItems: "center", fontSize: 13 }}>
+        <div style={{ display: "flex", gap: 12, alignItems: "center", fontSize: 13, flexWrap: "wrap" }}>
           <div style={{ textAlign: "right" }}>
             <div style={{ color: "#9AA0A4" }}>Itens</div>
             <div style={{ fontFamily: "'IBM Plex Mono', monospace" }}>{totalAdquiridos}/{totalItens}</div>
           </div>
           <div style={{ display: "flex", border: "1px solid #4A4F54", borderRadius: 4, overflow: "hidden" }}>
-            <button onClick={() => setVisao("categorias")} title="Ver por categoria" style={{ background: visao === "categorias" ? "#F5F5F2" : "transparent", color: visao === "categorias" ? "var(--ink)" : "#F5F5F2", border: "none", padding: "7px 9px", display: "flex" }}>
-              <LayoutGrid size={16} />
+            <button onClick={() => setVisao("categorias")} title="Ver por categoria" style={{ background: visao === "categorias" ? "#F5F5F2" : "transparent", color: visao === "categorias" ? "var(--ink)" : "#F5F5F2", border: "none", padding: "7px 10px", display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600 }}>
+              <LayoutGrid size={16} /> Itens
             </button>
-            <button onClick={() => setVisao("calculadora")} title="Calculadora de cabos e infraestrutura" style={{ background: visao === "calculadora" ? "#F5F5F2" : "transparent", color: visao === "calculadora" ? "var(--ink)" : "#F5F5F2", border: "none", padding: "7px 9px", display: "flex" }}>
-              <Calculator size={16} />
+            <button onClick={() => setVisao("calculadora")} title="Calculadora de cabos e infraestrutura" style={{ background: visao === "calculadora" ? "#F5F5F2" : "transparent", color: visao === "calculadora" ? "var(--ink)" : "#F5F5F2", border: "none", borderLeft: "1px solid #4A4F54", borderRight: "1px solid #4A4F54", padding: "7px 10px", display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600 }}>
+              <Calculator size={16} /> Calculadora
             </button>
-            <button onClick={() => setVisao("geral")} title="Ver lista geral" style={{ background: visao === "geral" ? "#F5F5F2" : "transparent", color: visao === "geral" ? "var(--ink)" : "#F5F5F2", border: "none", padding: "7px 9px", display: "flex" }}>
-              <List size={16} />
+            <button onClick={() => setVisao("geral")} title="Ver lista geral" style={{ background: visao === "geral" ? "#F5F5F2" : "transparent", color: visao === "geral" ? "var(--ink)" : "#F5F5F2", border: "none", padding: "7px 10px", display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600 }}>
+              <List size={16} /> Geral
             </button>
           </div>
+
           <button onClick={() => window.print()} title="Imprimir" style={{ background: "transparent", border: "1px solid #4A4F54", borderRadius: 3, color: "#F5F5F2", padding: 7, display: "flex" }}>
             <Printer size={16} />
           </button>
