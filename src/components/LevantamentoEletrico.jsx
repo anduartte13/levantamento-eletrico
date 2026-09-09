@@ -1,3 +1,4 @@
+import { storage } from "@/lib/local-storage-api";
 import { useState, useEffect, useMemo } from "react";
 import {
   Plus,
@@ -324,11 +325,11 @@ export default function LevantamentoEletrico() {
   useEffect(() => {
     (async () => {
       try {
-        const meta = await window.storage.get("levantamento:meta");
+        const meta = await storage.get("levantamento:meta");
         if (meta) setObra(JSON.parse(meta.value).obra || "");
       } catch (e) {}
       try {
-        const data = await window.storage.get("levantamento:itens");
+        const data = await storage.get("levantamento:itens");
         if (data) {
           const brutos = JSON.parse(data.value);
           // Limpa itens antigos gerados por circuitos/trechos de uma versão anterior do app
@@ -339,23 +340,23 @@ export default function LevantamentoEletrico() {
         }
       } catch (e) {}
       try {
-        const tc = await window.storage.get("levantamento:trechosCircuito");
+        const tc = await storage.get("levantamento:trechosCircuito");
         if (tc) setTrechosCircuito(JSON.parse(tc.value));
       } catch (e) {}
       try {
-        const ti = await window.storage.get("levantamento:trechosInfra");
+        const ti = await storage.get("levantamento:trechosInfra");
         if (ti) setTrechosInfra(JSON.parse(ti.value));
       } catch (e) {}
       try {
-        const tt = await window.storage.get("levantamento:trechosTomada");
+        const tt = await storage.get("levantamento:trechosTomada");
         if (tt) setTrechosTomada(JSON.parse(tt.value));
       } catch (e) {}
       try {
-        const rg = await window.storage.get("levantamento:regras");
+        const rg = await storage.get("levantamento:regras");
         if (rg) setRegras({ ...REGRAS_PADRAO, ...JSON.parse(rg.value) });
       } catch (e) {}
       try {
-        const sa = await window.storage.get("levantamento:statusAdquiridoCalc");
+        const sa = await storage.get("levantamento:statusAdquiridoCalc");
         if (sa) setStatusAdquiridoCalc(JSON.parse(sa.value));
       } catch (e) {}
       setLoaded(true);
@@ -364,31 +365,31 @@ export default function LevantamentoEletrico() {
 
   useEffect(() => {
     if (!loaded) return;
-    window.storage.set("levantamento:meta", JSON.stringify({ obra })).catch(() => setErro("Não foi possível salvar os dados agora."));
+    storage.set("levantamento:meta", JSON.stringify({ obra })).catch(() => setErro("Não foi possível salvar os dados agora."));
   }, [obra, loaded]);
   useEffect(() => {
     if (!loaded) return;
-    window.storage.set("levantamento:itens", JSON.stringify(itensManual)).catch(() => setErro("Não foi possível salvar os dados agora."));
+    storage.set("levantamento:itens", JSON.stringify(itensManual)).catch(() => setErro("Não foi possível salvar os dados agora."));
   }, [itensManual, loaded]);
   useEffect(() => {
     if (!loaded) return;
-    window.storage.set("levantamento:trechosCircuito", JSON.stringify(trechosCircuito)).catch(() => {});
+    storage.set("levantamento:trechosCircuito", JSON.stringify(trechosCircuito)).catch(() => {});
   }, [trechosCircuito, loaded]);
   useEffect(() => {
     if (!loaded) return;
-    window.storage.set("levantamento:trechosInfra", JSON.stringify(trechosInfra)).catch(() => {});
+    storage.set("levantamento:trechosInfra", JSON.stringify(trechosInfra)).catch(() => {});
   }, [trechosInfra, loaded]);
   useEffect(() => {
     if (!loaded) return;
-    window.storage.set("levantamento:trechosTomada", JSON.stringify(trechosTomada)).catch(() => {});
+    storage.set("levantamento:trechosTomada", JSON.stringify(trechosTomada)).catch(() => {});
   }, [trechosTomada, loaded]);
   useEffect(() => {
     if (!loaded) return;
-    window.storage.set("levantamento:regras", JSON.stringify(regras)).catch(() => {});
+    storage.set("levantamento:regras", JSON.stringify(regras)).catch(() => {});
   }, [regras, loaded]);
   useEffect(() => {
     if (!loaded) return;
-    window.storage.set("levantamento:statusAdquiridoCalc", JSON.stringify(statusAdquiridoCalc)).catch(() => {});
+    storage.set("levantamento:statusAdquiridoCalc", JSON.stringify(statusAdquiridoCalc)).catch(() => {});
   }, [statusAdquiridoCalc, loaded]);
 
   // Itens calculados: agregados por categoria+nome+unidade, somando todos os circuitos/trechos.
@@ -581,12 +582,12 @@ export default function LevantamentoEletrico() {
     setTrechosTomada([]);
     setStatusAdquiridoCalc({});
     try {
-      await window.storage.delete("levantamento:meta");
-      await window.storage.delete("levantamento:itens");
-      await window.storage.delete("levantamento:trechosCircuito");
-      await window.storage.delete("levantamento:trechosInfra");
-      await window.storage.delete("levantamento:trechosTomada");
-      await window.storage.delete("levantamento:statusAdquiridoCalc");
+      await storage.delete("levantamento:meta");
+      await storage.delete("levantamento:itens");
+      await storage.delete("levantamento:trechosCircuito");
+      await storage.delete("levantamento:trechosInfra");
+      await storage.delete("levantamento:trechosTomada");
+      await storage.delete("levantamento:statusAdquiridoCalc");
     } catch (e) {
       // chaves podem já não existir; sem problema
     }

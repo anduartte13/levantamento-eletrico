@@ -1,24 +1,32 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import LevantamentoEletrico from "@/components/LevantamentoEletrico";
 
-// No head() here: the home route inherits title/description/og/twitter from
-// __root.tsx, and ships no og:image so serve-time hosting can inject the
-// project's social preview (explicit og:image or latest screenshot).
 export const Route = createFileRoute("/")({
+  head: () => ({
+    meta: [
+      { title: "Levantamento de Material Elétrico" },
+      {
+        name: "description",
+        content:
+          "Organize categorias, calcule cabos, eletrodutos e tomadas e acompanhe o que já foi adquirido na obra.",
+      },
+      { property: "og:title", content: "Levantamento de Material Elétrico" },
+      {
+        property: "og:description",
+        content:
+          "Lista de materiais elétricos com calculadora de cabos, infraestrutura e tomadas para obras.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
   component: Index,
 });
 
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
 function Index() {
-  return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
-    </div>
-  );
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted) return null;
+  return <LevantamentoEletrico />;
 }
