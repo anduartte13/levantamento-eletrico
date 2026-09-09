@@ -646,7 +646,7 @@ export default function LevantamentoEletrico() {
             style={{ background: "transparent", border: "none", borderBottom: "1px solid #4A4F54", color: "#F5F5F2", fontSize: 17, fontWeight: 600, padding: "4px 2px", minWidth: 160, maxWidth: 280 }}
           />
         </div>
-        <div style={{ display: "flex", gap: 18, alignItems: "center", fontSize: 13 }}>
+        <div style={{ display: "flex", gap: 12, alignItems: "center", fontSize: 13, flexWrap: "wrap" }}>
           <div style={{ textAlign: "right" }}>
             <div style={{ color: "#9AA0A4" }}>Itens</div>
             <div style={{ fontFamily: "'IBM Plex Mono', monospace" }}>{totalAdquiridos}/{totalItens}</div>
