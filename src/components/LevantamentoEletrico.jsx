@@ -16,6 +16,7 @@ import {
   ChevronDown,
   ChevronUp,
   Eraser,
+  Send,
 } from "lucide-react";
 
 const CATEGORIAS_PADRAO = [
@@ -851,7 +852,7 @@ export default function LevantamentoEletrico() {
         <p style={{ color: "var(--ink-soft)", fontSize: 14, margin: "0 0 28px" }}>
           {visao === "categorias" && "Cabos e infraestrutura calculados aparecem já somados por bitola/cor ou dimensão. Adicione manualmente o restante dos materiais."}
           {visao === "calculadora" && "Informe a distância linear do circuito ou da infraestrutura — o resto é calculado para você."}
-          {visao === "imprimir" && "Escolha a lista, confira a prévia e clique em Gerar PDF. Na janela que abrir, selecione \"Salvar como PDF\"."}
+          {visao === "imprimir" && "Escolha a lista, confira a prévia e clique em Gerar PDF. Na janela que abrir, selecione \"Salvar como PDF\". Ou envie a lista direto pelo WhatsApp."}
           {visao === "geral" && "Lista consolidada: itens iguais aparecem somados, organizados por bitola/dimensão."}
         </p>
 
@@ -1375,7 +1376,19 @@ export default function LevantamentoEletrico() {
                 <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, marginLeft: 6 }}>
                   <input type="checkbox" checked={soPendentes} onChange={(e) => setSoPendentes(e.target.checked)} /> Só o que falta comprar
                 </label>
-                <button onClick={() => window.print()} style={{ marginLeft: "auto", background: "var(--yellow)", color: "var(--ink)", border: "none", borderRadius: 3, padding: "9px 14px", fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
+                <button onClick={() => {
+                  const linhas = [`*${obra || "Levantamento de material elétrico"}*`, `${tipoImpressao === "geral" ? "Lista geral" : "Lista por categoria"}${soPendentes ? " — falta comprar" : ""}`, ""];
+                  for (const g of visiveis) {
+                    linhas.push(`*${g.titulo}*`);
+                    for (const i of g.itens) linhas.push(`${i.adquirido ? "✅" : "⬜"} ${i.nome} — ${String(i.quantidade).replace(".", ",")} ${i.unidade}`);
+                    linhas.push("");
+                  }
+                  if (!visiveis.length) linhas.push("Nenhum item.");
+                  window.open(`https://wa.me/?text=${encodeURIComponent(linhas.join("\n"))}`, "_blank");
+                }} style={{ marginLeft: "auto", background: "#25D366", color: "#0B2A17", border: "none", borderRadius: 3, padding: "9px 14px", fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
+                  <Send size={16} /> Enviar no WhatsApp
+                </button>
+                <button onClick={() => window.print()} style={{ background: "var(--yellow)", color: "var(--ink)", border: "none", borderRadius: 3, padding: "9px 14px", fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
                   <Printer size={16} /> Gerar PDF
                 </button>
               </div>

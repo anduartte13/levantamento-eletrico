@@ -1,6 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import LevantamentoEletrico from "@/components/LevantamentoEletrico";
+// @ts-ignore
+import SeletorObras from "@/components/SeletorObras";
+// @ts-ignore
+import { obraAtual } from "@/lib/local-storage-api";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -25,8 +29,13 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-  if (!mounted) return null;
-  return <LevantamentoEletrico />;
+  const [obra, setObra] = useState<string | null>(null);
+  useEffect(() => setObra(obraAtual()), []);
+  if (!obra) return null;
+  return (
+    <>
+      <SeletorObras atual={obra} onTrocar={setObra} />
+      <LevantamentoEletrico key={obra} />
+    </>
+  );
 }
