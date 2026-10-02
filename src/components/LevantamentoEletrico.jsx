@@ -1,8 +1,10 @@
-import { storage } from "@/lib/local-storage-api";
 import { useState, useEffect, useMemo } from "react";
+import { storage } from "@/lib/local-storage-api";
 import {
   Plus,
   Trash2,
+  Pencil,
+  X,
   Check,
   Printer,
   Download,
@@ -40,11 +42,15 @@ const FINALIDADES_CIRCUITO = [
 ];
 
 const TIPOS_INFRA = [
-  { value: "eletroduto", label: "Eletroduto", labelDimensao: "Diâmetro", placeholderDimensao: '3/4"' },
-  { value: "eletrocalha", label: "Eletrocalha perfurada", labelDimensao: "Dimensão", placeholderDimensao: "100x50mm" },
-  { value: "leito", label: "Leito para cabos", labelDimensao: "Dimensão", placeholderDimensao: "300mm" },
-  { value: "perfilado", label: "Perfilado", labelDimensao: "Dimensão", placeholderDimensao: "38x38mm" },
+  { value: "eletroduto", label: "Eletroduto", labelDimensao: "Diâmetro", opcoesDimensao: ['1/2"', '3/4"', '1"', '1.1/4"', '1.1/2"', '2"', '2.1/2"', '3"', '4"'] },
+  { value: "eletrocalha", label: "Eletrocalha perfurada", labelDimensao: "Dimensão", opcoesDimensao: ["50x50mm", "100x50mm", "150x50mm", "200x50mm", "300x50mm", "100x100mm", "150x100mm", "200x100mm", "300x100mm", "400x100mm", "500x100mm", "600x100mm"] },
+  { value: "leito", label: "Leito para cabos", labelDimensao: "Dimensão", opcoesDimensao: ["100x100mm", "150x100mm", "200x100mm", "300x100mm", "400x100mm", "500x100mm", "600x100mm", "800x100mm", "1000x100mm"] },
+  { value: "perfilado", label: "Perfilado", labelDimensao: "Dimensão", opcoesDimensao: ["19x38mm", "38x38mm", "38x76mm"] },
 ];
+
+const BITOLAS_CABO = ["0,5", "0,75", "1", "1,5", "2,5", "4", "6", "10", "16", "25", "35", "50", "70", "95", "120", "150", "185", "240"];
+const BITOLAS_TERMINAL = ["10mm", "16mm", "25mm", "35mm", "50mm", "70mm", "95mm", "120mm", "150mm", "185mm", "240mm"];
+const OUTRO = "__outro__";
 
 const OPCOES_BARRA_ROSCADA = [
   { value: "nao", label: "Não usar barra roscada" },
@@ -122,12 +128,13 @@ function calcularCircuito(trecho, regras) {
   const finalidadeObj = FINALIDADES_CIRCUITO.find((f) => f.value === trecho.finalidade) || FINALIDADES_CIRCUITO[0];
   const cores = finalidadeObj.cores;
   const distancia = Number(trecho.distancia) || 0;
+  const cabosPorFase = Number(trecho.cabosPorFase) || 1; // ex: 2x3F+2N+T -> 2 cabos em paralelo por fase e por neutro
   const metragemPorCondutor = distancia * (1 + regras.perdaCabosPercent / 100) + regras.folgaCaboM;
   const grupo = `Cabos ${trecho.bitola}mm²`;
   const itens = [];
   itens.push({
     nome: `Cabo flexível ${trecho.bitola}mm² — ${cores.fase}`,
-    quantidade: round2(metragemPorCondutor * tipoObj.fases),
+    quantidade: round2(metragemPorCondutor * tipoObj.fases * cabosPorFase),
     unidade: "m",
     categoria: "Fios e cabos",
     grupo,
@@ -135,7 +142,7 @@ function calcularCircuito(trecho, regras) {
   if (tipoObj.neutro) {
     itens.push({
       nome: `Cabo flexível ${trecho.bitola}mm² — ${cores.neutro}`,
-      quantidade: round2(metragemPorCondutor),
+      quantidade: round2(metragemPorCondutor * cabosPorFase),
       unidade: "m",
       categoria: "Fios e cabos",
       grupo,
@@ -149,6 +156,20 @@ function calcularCircuito(trecho, regras) {
     grupo,
   });
   return itens;
+}
+
+function calcularTerminal(trecho, regras) {
+  const tipoObj = TIPOS_CIRCUITO.find((t) => t.value === trecho.tipo);
+  const cabosPorFase = Number(trecho.cabosPorFase) || 1;
+  const fasesEfetivas = tipoObj.fases * cabosPorFase;
+  const neutroEfetivo = tipoObj.neutro ? cabosPorFase : 0;
+  const terra = 1; // terra não é multiplicado por cabosPorFase, igual ao cálculo de cabos
+  const condutores = fasesEfetivas + neutroEfetivo + terra;
+  const terminais = condutores * 2; // 2 pontas por cabo (origem e destino)
+  const grupo = `Terminais ${trecho.bitola}`;
+  return [
+    { nome: `Terminal olhal de compressão ${trecho.bitola}`, quantidade: terminais, unidade: "un", categoria: "Fios e cabos", grupo },
+  ];
 }
 
 function itensBarraRoscada(trecho, regras, suportes, grupo) {
@@ -311,16 +332,26 @@ export default function LevantamentoEletrico() {
   const [trechosCircuito, setTrechosCircuito] = useState([]);
   const [trechosInfra, setTrechosInfra] = useState([]);
   const [trechosTomada, setTrechosTomada] = useState([]);
+  const [trechosTerminal, setTrechosTerminal] = useState([]);
   const [regras, setRegras] = useState(REGRAS_PADRAO);
   const [statusAdquiridoCalc, setStatusAdquiridoCalc] = useState({});
   const [loaded, setLoaded] = useState(false);
   const [novo, setNovo] = useState({});
   const [erro, setErro] = useState("");
-  const [visao, setVisao] = useState("categorias"); // 'categorias' | 'calculadora' | 'geral'
+  const [visao, setVisao] = useState("categorias"); // 'categorias' | 'calculadora' | 'geral' | 'imprimir'
+  const [tipoImpressao, setTipoImpressao] = useState("categorias");
+  const [soPendentes, setSoPendentes] = useState(false);
   const [mostrarRegras, setMostrarRegras] = useState(false);
-  const [formCircuito, setFormCircuito] = useState({ tipo: "mono", bitola: "2,5", finalidade: "forca" });
+  const [formCircuito, setFormCircuito] = useState({ tipo: "mono", bitola: "2,5", finalidade: "forca", cabosPorFase: "1" });
   const [formInfra, setFormInfra] = useState({ tipo: "eletroduto", dimensao: '3/4"', barraRoscada: "nao" });
   const [formTomada, setFormTomada] = useState({ tipo: "condulete", amperagem: "10A", cor: "Vermelha", fase: "mono" });
+  const [formTerminal, setFormTerminal] = useState({ tipo: "mono", cabosPorFase: "1", bitola: "10mm" });
+  const [editandoCircuitoId, setEditandoCircuitoId] = useState(null);
+  const [editandoInfraId, setEditandoInfraId] = useState(null);
+  const [editandoTomadaId, setEditandoTomadaId] = useState(null);
+  const [editandoTerminalId, setEditandoTerminalId] = useState(null);
+  const [editandoItemId, setEditandoItemId] = useState(null);
+  const [itemEditDraft, setItemEditDraft] = useState({});
 
   useEffect(() => {
     (async () => {
@@ -350,6 +381,10 @@ export default function LevantamentoEletrico() {
       try {
         const tt = await storage.get("levantamento:trechosTomada");
         if (tt) setTrechosTomada(JSON.parse(tt.value));
+      } catch (e) {}
+      try {
+        const tm = await storage.get("levantamento:trechosTerminal");
+        if (tm) setTrechosTerminal(JSON.parse(tm.value));
       } catch (e) {}
       try {
         const rg = await storage.get("levantamento:regras");
@@ -385,6 +420,10 @@ export default function LevantamentoEletrico() {
   }, [trechosTomada, loaded]);
   useEffect(() => {
     if (!loaded) return;
+    storage.set("levantamento:trechosTerminal", JSON.stringify(trechosTerminal)).catch(() => {});
+  }, [trechosTerminal, loaded]);
+  useEffect(() => {
+    if (!loaded) return;
     storage.set("levantamento:regras", JSON.stringify(regras)).catch(() => {});
   }, [regras, loaded]);
   useEffect(() => {
@@ -416,13 +455,20 @@ export default function LevantamentoEletrico() {
         mapa.get(chave).quantidade = round2(mapa.get(chave).quantidade + it.quantidade);
       }
     }
+    for (const trecho of trechosTerminal) {
+      for (const it of calcularTerminal(trecho, regras)) {
+        const chave = chaveItem(it.categoria, it.nome, it.unidade);
+        if (!mapa.has(chave)) mapa.set(chave, { ...it, quantidade: 0 });
+        mapa.get(chave).quantidade = round2(mapa.get(chave).quantidade + it.quantidade);
+      }
+    }
     return Array.from(mapa.entries()).map(([chave, it]) => ({
       ...it,
       id: chave,
       calculado: true,
       adquirido: !!statusAdquiridoCalc[chave],
     }));
-  }, [trechosCircuito, trechosInfra, trechosTomada, regras, statusAdquiridoCalc]);
+  }, [trechosCircuito, trechosInfra, trechosTomada, trechosTerminal, regras, statusAdquiridoCalc]);
 
   const itensCombinados = useMemo(
     () => [...itensManual, ...itensCalculados].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")),
@@ -483,6 +529,7 @@ export default function LevantamentoEletrico() {
 
   function removeItemManual(id) {
     setItensManual((prev) => prev.filter((i) => i.id !== id));
+    if (editandoItemId === id) setEditandoItemId(null);
   }
 
   function toggleAdquirido(item) {
@@ -493,36 +540,98 @@ export default function LevantamentoEletrico() {
     }
   }
 
+  function editarItemManual(item) {
+    setEditandoItemId(item.id);
+    setItemEditDraft({ nome: item.nome, quantidade: item.quantidade, unidade: item.unidade });
+  }
+
+  function salvarItemManual(id) {
+    if (!itemEditDraft.nome || !itemEditDraft.quantidade) return;
+    setItensManual((prev) =>
+      prev.map((i) => (i.id === id ? { ...i, nome: itemEditDraft.nome.trim(), quantidade: Number(itemEditDraft.quantidade), unidade: itemEditDraft.unidade || "un" } : i))
+    );
+    setEditandoItemId(null);
+  }
+
+  function cancelarEdicaoItem() {
+    setEditandoItemId(null);
+  }
+
   function adicionarTrechoCircuito() {
     const distancia = Number(formCircuito.distancia);
     if (!distancia || distancia <= 0 || !formCircuito.bitola) return;
-    const trechoId = uid();
     const nomeCircuito = formCircuito.nome?.trim() || `Circuito ${trechosCircuito.length + 1}`;
-    setTrechosCircuito((prev) => [
-      ...prev,
-      { id: trechoId, nome: nomeCircuito, distancia, tipo: formCircuito.tipo, bitola: formCircuito.bitola, finalidade: formCircuito.finalidade },
-    ]);
-    setFormCircuito({ tipo: formCircuito.tipo, bitola: formCircuito.bitola, finalidade: formCircuito.finalidade });
+    const cabosPorFase = Number(formCircuito.cabosPorFase) || 1;
+    if (editandoCircuitoId) {
+      setTrechosCircuito((prev) =>
+        prev.map((t) =>
+          t.id === editandoCircuitoId
+            ? { ...t, nome: nomeCircuito, distancia, tipo: formCircuito.tipo, bitola: formCircuito.bitola, finalidade: formCircuito.finalidade, cabosPorFase }
+            : t
+        )
+      );
+      setEditandoCircuitoId(null);
+    } else {
+      const trechoId = uid();
+      setTrechosCircuito((prev) => [
+        ...prev,
+        { id: trechoId, nome: nomeCircuito, distancia, tipo: formCircuito.tipo, bitola: formCircuito.bitola, finalidade: formCircuito.finalidade, cabosPorFase },
+      ]);
+    }
+    setFormCircuito({ tipo: formCircuito.tipo, bitola: formCircuito.bitola, finalidade: formCircuito.finalidade, cabosPorFase: formCircuito.cabosPorFase });
+  }
+
+  function editarTrechoCircuito(t) {
+    setEditandoCircuitoId(t.id);
+    setFormCircuito({ nome: t.nome, distancia: String(t.distancia), tipo: t.tipo, bitola: t.bitola, finalidade: t.finalidade, cabosPorFase: String(t.cabosPorFase || 1) });
+  }
+
+  function cancelarEdicaoCircuito() {
+    setEditandoCircuitoId(null);
+    setFormCircuito({ tipo: "mono", bitola: "2,5", finalidade: "forca", cabosPorFase: "1" });
   }
 
   function removerTrechoCircuito(id) {
     setTrechosCircuito((prev) => prev.filter((t) => t.id !== id));
+    if (editandoCircuitoId === id) cancelarEdicaoCircuito();
   }
 
   function adicionarTrechoInfra() {
     const distancia = Number(formInfra.distancia);
     if (!distancia || distancia <= 0 || !formInfra.dimensao) return;
-    const trechoId = uid();
     const nomeTrecho = formInfra.nome?.trim() || `Trecho ${trechosInfra.length + 1}`;
-    setTrechosInfra((prev) => [
-      ...prev,
-      { id: trechoId, nome: nomeTrecho, distancia, dimensao: formInfra.dimensao, tipo: formInfra.tipo, barraRoscada: formInfra.barraRoscada || "nao" },
-    ]);
+    if (editandoInfraId) {
+      setTrechosInfra((prev) =>
+        prev.map((t) =>
+          t.id === editandoInfraId
+            ? { ...t, nome: nomeTrecho, distancia, dimensao: formInfra.dimensao, tipo: formInfra.tipo, barraRoscada: formInfra.barraRoscada || "nao" }
+            : t
+        )
+      );
+      setEditandoInfraId(null);
+    } else {
+      const trechoId = uid();
+      setTrechosInfra((prev) => [
+        ...prev,
+        { id: trechoId, nome: nomeTrecho, distancia, dimensao: formInfra.dimensao, tipo: formInfra.tipo, barraRoscada: formInfra.barraRoscada || "nao" },
+      ]);
+    }
     setFormInfra({ tipo: formInfra.tipo, dimensao: formInfra.dimensao, barraRoscada: formInfra.barraRoscada });
+  }
+
+  function editarTrechoInfra(t) {
+    setEditandoInfraId(t.id);
+    setFormInfra({ nome: t.nome, distancia: String(t.distancia), dimensao: t.dimensao, tipo: t.tipo, barraRoscada: t.barraRoscada || "nao" });
+  }
+
+  function cancelarEdicaoInfra() {
+    setEditandoInfraId(null);
+    setFormInfra({ tipo: "eletroduto", dimensao: '3/4"', barraRoscada: "nao" });
   }
 
   function removerTrechoInfra(id) {
     setTrechosInfra((prev) => prev.filter((t) => t.id !== id));
+    if (editandoInfraId === id) cancelarEdicaoInfra();
   }
 
   function adicionarTrechoTomada() {
@@ -530,14 +639,68 @@ export default function LevantamentoEletrico() {
     if (!quantidade || quantidade <= 0) return;
     if (formTomada.tipo === "condulete" && !formTomada.bitola) return;
     if (formTomada.tipo === "industrial" && formTomada.fase === "tri" && !formTomada.padraoTrifasico) return;
-    const trechoId = uid();
-    const nomeTomada = formTomada.nome?.trim() || `Tomadas ${trechosTomada.length + 1}`;
-    setTrechosTomada((prev) => [...prev, { id: trechoId, nome: nomeTomada, quantidade, ...formTomada }]);
+    if (editandoTomadaId) {
+      const nomeTomada = formTomada.nome?.trim() || "Tomadas";
+      setTrechosTomada((prev) => prev.map((t) => (t.id === editandoTomadaId ? { id: t.id, nome: nomeTomada, quantidade, ...formTomada } : t)));
+      setEditandoTomadaId(null);
+    } else {
+      const trechoId = uid();
+      const nomeTomada = formTomada.nome?.trim() || `Tomadas ${trechosTomada.length + 1}`;
+      setTrechosTomada((prev) => [...prev, { id: trechoId, nome: nomeTomada, quantidade, ...formTomada }]);
+    }
     setFormTomada((p) => ({ ...p, nome: "", quantidade: "" }));
+  }
+
+  function editarTrechoTomada(t) {
+    setEditandoTomadaId(t.id);
+    setFormTomada({ ...t, quantidade: String(t.quantidade) });
+  }
+
+  function cancelarEdicaoTomada() {
+    setEditandoTomadaId(null);
+    setFormTomada({ tipo: "condulete", amperagem: "10A", cor: "Vermelha", fase: "mono" });
   }
 
   function removerTrechoTomada(id) {
     setTrechosTomada((prev) => prev.filter((t) => t.id !== id));
+    if (editandoTomadaId === id) cancelarEdicaoTomada();
+  }
+
+  function adicionarTrechoTerminal() {
+    if (!formTerminal.bitola) return;
+    const cabosPorFase = Number(formTerminal.cabosPorFase) || 1;
+    if (editandoTerminalId) {
+      const nomeTerminal = formTerminal.nome?.trim() || "Terminais";
+      setTrechosTerminal((prev) =>
+        prev.map((t) =>
+          t.id === editandoTerminalId ? { id: t.id, nome: nomeTerminal, tipo: formTerminal.tipo, cabosPorFase, bitola: formTerminal.bitola } : t
+        )
+      );
+      setEditandoTerminalId(null);
+    } else {
+      const trechoId = uid();
+      const nomeTerminal = formTerminal.nome?.trim() || `Terminais ${trechosTerminal.length + 1}`;
+      setTrechosTerminal((prev) => [
+        ...prev,
+        { id: trechoId, nome: nomeTerminal, tipo: formTerminal.tipo, cabosPorFase, bitola: formTerminal.bitola },
+      ]);
+    }
+    setFormTerminal({ tipo: formTerminal.tipo, cabosPorFase: formTerminal.cabosPorFase, bitola: formTerminal.bitola });
+  }
+
+  function editarTrechoTerminal(t) {
+    setEditandoTerminalId(t.id);
+    setFormTerminal({ nome: t.nome, tipo: t.tipo, cabosPorFase: String(t.cabosPorFase || 1), bitola: t.bitola });
+  }
+
+  function cancelarEdicaoTerminal() {
+    setEditandoTerminalId(null);
+    setFormTerminal({ tipo: "mono", cabosPorFase: "1", bitola: "10mm" });
+  }
+
+  function removerTrechoTerminal(id) {
+    setTrechosTerminal((prev) => prev.filter((t) => t.id !== id));
+    if (editandoTerminalId === id) cancelarEdicaoTerminal();
   }
 
   function exportarCSV() {
@@ -572,7 +735,7 @@ export default function LevantamentoEletrico() {
 
   async function limparLevantamento() {
     const confirmado = window.confirm(
-      "Isso vai apagar a obra, todos os itens lançados, circuitos, trechos de infraestrutura e tomadas calculadas. Os parâmetros de cálculo (folgas, perdas, espaçamentos) são mantidos. Confirma?"
+      "Isso vai apagar a obra, todos os itens lançados, circuitos, trechos de infraestrutura, tomadas e terminais calculados. Os parâmetros de cálculo (folgas, perdas, espaçamentos) são mantidos. Confirma?"
     );
     if (!confirmado) return;
     setObra("");
@@ -580,6 +743,7 @@ export default function LevantamentoEletrico() {
     setTrechosCircuito([]);
     setTrechosInfra([]);
     setTrechosTomada([]);
+    setTrechosTerminal([]);
     setStatusAdquiridoCalc({});
     try {
       await storage.delete("levantamento:meta");
@@ -587,6 +751,7 @@ export default function LevantamentoEletrico() {
       await storage.delete("levantamento:trechosCircuito");
       await storage.delete("levantamento:trechosInfra");
       await storage.delete("levantamento:trechosTomada");
+      await storage.delete("levantamento:trechosTerminal");
       await storage.delete("levantamento:statusAdquiridoCalc");
     } catch (e) {
       // chaves podem já não existir; sem problema
@@ -646,23 +811,25 @@ export default function LevantamentoEletrico() {
             style={{ background: "transparent", border: "none", borderBottom: "1px solid #4A4F54", color: "#F5F5F2", fontSize: 17, fontWeight: 600, padding: "4px 2px", minWidth: 160, maxWidth: 280 }}
           />
         </div>
-        <div style={{ display: "flex", gap: 12, alignItems: "center", fontSize: 13, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 18, alignItems: "center", fontSize: 13, flexWrap: "wrap" }}>
           <div style={{ textAlign: "right" }}>
             <div style={{ color: "#9AA0A4" }}>Itens</div>
             <div style={{ fontFamily: "'IBM Plex Mono', monospace" }}>{totalAdquiridos}/{totalItens}</div>
           </div>
           <div style={{ display: "flex", border: "1px solid #4A4F54", borderRadius: 4, overflow: "hidden" }}>
-            <button onClick={() => setVisao("categorias")} title="Ver por categoria" style={{ background: visao === "categorias" ? "#F5F5F2" : "transparent", color: visao === "categorias" ? "var(--ink)" : "#F5F5F2", border: "none", padding: "7px 10px", display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600 }}>
+            <button onClick={() => setVisao("categorias")} title="Ver por categoria" style={{ background: visao === "categorias" ? "#F5F5F2" : "transparent", color: visao === "categorias" ? "var(--ink)" : "#F5F5F2", border: "none", padding: "7px 10px", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
               <LayoutGrid size={16} /> Itens
             </button>
-            <button onClick={() => setVisao("calculadora")} title="Calculadora de cabos e infraestrutura" style={{ background: visao === "calculadora" ? "#F5F5F2" : "transparent", color: visao === "calculadora" ? "var(--ink)" : "#F5F5F2", border: "none", borderLeft: "1px solid #4A4F54", borderRight: "1px solid #4A4F54", padding: "7px 10px", display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600 }}>
+            <button onClick={() => setVisao("calculadora")} title="Calculadora de cabos e infraestrutura" style={{ background: visao === "calculadora" ? "#F5F5F2" : "transparent", color: visao === "calculadora" ? "var(--ink)" : "#F5F5F2", border: "none", padding: "7px 10px", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
               <Calculator size={16} /> Calculadora
             </button>
-            <button onClick={() => setVisao("geral")} title="Ver lista geral" style={{ background: visao === "geral" ? "#F5F5F2" : "transparent", color: visao === "geral" ? "var(--ink)" : "#F5F5F2", border: "none", padding: "7px 10px", display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600 }}>
+            <button onClick={() => setVisao("geral")} title="Ver lista geral" style={{ background: visao === "geral" ? "#F5F5F2" : "transparent", color: visao === "geral" ? "var(--ink)" : "#F5F5F2", border: "none", padding: "7px 10px", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
               <List size={16} /> Geral
             </button>
+            <button onClick={() => setVisao("imprimir")} title="Imprimir listas em PDF" style={{ background: visao === "imprimir" ? "#F5F5F2" : "transparent", color: visao === "imprimir" ? "var(--ink)" : "#F5F5F2", border: "none", padding: "7px 10px", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
+              <Printer size={16} /> Imprimir
+            </button>
           </div>
-
           <button onClick={() => window.print()} title="Imprimir" style={{ background: "transparent", border: "1px solid #4A4F54", borderRadius: 3, color: "#F5F5F2", padding: 7, display: "flex" }}>
             <Printer size={16} />
           </button>
@@ -684,6 +851,7 @@ export default function LevantamentoEletrico() {
         <p style={{ color: "var(--ink-soft)", fontSize: 14, margin: "0 0 28px" }}>
           {visao === "categorias" && "Cabos e infraestrutura calculados aparecem já somados por bitola/cor ou dimensão. Adicione manualmente o restante dos materiais."}
           {visao === "calculadora" && "Informe a distância linear do circuito ou da infraestrutura — o resto é calculado para você."}
+          {visao === "imprimir" && "Escolha a lista, confira a prévia e clique em Gerar PDF. Na janela que abrir, selecione \"Salvar como PDF\"."}
           {visao === "geral" && "Lista consolidada: itens iguais aparecem somados, organizados por bitola/dimensão."}
         </p>
 
@@ -700,27 +868,50 @@ export default function LevantamentoEletrico() {
                   </span>
                 </div>
                 <div style={{ borderTop: "1px solid var(--rule)" }}>
-                  {itensCategoria.map((item) => (
-                    <div key={item.id} style={{ display: "grid", gridTemplateColumns: "auto 1fr auto auto", alignItems: "center", gap: 10, padding: "9px 0", borderBottom: "1px solid var(--rule)", fontSize: 14, opacity: item.adquirido ? 0.55 : 1 }}>
-                      <button className="no-print" onClick={() => toggleAdquirido(item)} title={item.adquirido ? "Marcar como pendente" : "Marcar como adquirido"} style={{ width: 22, height: 22, borderRadius: 4, border: `1px solid ${item.adquirido ? "var(--green)" : "var(--rule)"}`, background: item.adquirido ? "var(--green)" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", color: "white" }}>
-                        {item.adquirido && <Check size={13} />}
-                      </button>
-                      <span style={{ textDecoration: item.adquirido ? "line-through" : "none" }}>
-                        {item.nome}
-                        {item.calculado && <span style={{ color: "var(--ink-soft)", fontSize: 11 }}> · calculado</span>}
-                      </span>
-                      <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: "var(--ink-soft)", minWidth: 70, textAlign: "right" }}>
-                        {item.quantidade} {item.unidade}
-                      </span>
-                      {item.calculado ? (
-                        <span style={{ width: 15 }} />
-                      ) : (
-                        <button className="no-print" onClick={() => removeItemManual(item.id)} title="Remover" style={{ background: "transparent", border: "none", color: "var(--ink-soft)", padding: 4, display: "flex" }}>
-                          <Trash2 size={15} />
+                  {itensCategoria.map((item) =>
+                    editandoItemId === item.id ? (
+                      <div key={item.id} style={{ display: "flex", gap: 8, alignItems: "center", padding: "9px 0", borderBottom: "1px solid var(--rule)", flexWrap: "wrap" }}>
+                        <input type="text" value={itemEditDraft.nome || ""} onChange={(e) => setItemEditDraft((p) => ({ ...p, nome: e.target.value }))} style={{ flex: "2 1 160px", minWidth: 120 }} />
+                        <input type="number" value={itemEditDraft.quantidade || ""} onChange={(e) => setItemEditDraft((p) => ({ ...p, quantidade: e.target.value }))} style={{ width: 72 }} min="0" />
+                        <select value={itemEditDraft.unidade || "un"} onChange={(e) => setItemEditDraft((p) => ({ ...p, unidade: e.target.value }))} style={{ width: 66 }}>
+                          {UNIDADES.map((u) => (<option key={u} value={u}>{u}</option>))}
+                        </select>
+                        <button className="no-print" onClick={() => salvarItemManual(item.id)} title="Salvar" style={{ background: "var(--green)", border: "none", borderRadius: 4, color: "white", padding: 6, display: "flex" }}>
+                          <Check size={14} />
                         </button>
-                      )}
-                    </div>
-                  ))}
+                        <button className="no-print" onClick={cancelarEdicaoItem} title="Cancelar" style={{ background: "transparent", border: "1px solid var(--rule)", borderRadius: 4, color: "var(--ink-soft)", padding: 6, display: "flex" }}>
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ) : (
+                      <div key={item.id} style={{ display: "grid", gridTemplateColumns: "auto 1fr auto auto auto", alignItems: "center", gap: 10, padding: "9px 0", borderBottom: "1px solid var(--rule)", fontSize: 14, opacity: item.adquirido ? 0.55 : 1 }}>
+                        <button className="no-print" onClick={() => toggleAdquirido(item)} title={item.adquirido ? "Marcar como pendente" : "Marcar como adquirido"} style={{ width: 22, height: 22, borderRadius: 4, border: `1px solid ${item.adquirido ? "var(--green)" : "var(--rule)"}`, background: item.adquirido ? "var(--green)" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", color: "white" }}>
+                          {item.adquirido && <Check size={13} />}
+                        </button>
+                        <span style={{ textDecoration: item.adquirido ? "line-through" : "none" }}>
+                          {item.nome}
+                          {item.calculado && <span style={{ color: "var(--ink-soft)", fontSize: 11 }}> · calculado</span>}
+                        </span>
+                        <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: "var(--ink-soft)", minWidth: 70, textAlign: "right" }}>
+                          {item.quantidade} {item.unidade}
+                        </span>
+                        {item.calculado ? (
+                          <span style={{ width: 15 }} />
+                        ) : (
+                          <button className="no-print" onClick={() => editarItemManual(item)} title="Editar" style={{ background: "transparent", border: "none", color: "var(--ink-soft)", padding: 4, display: "flex" }}>
+                            <Pencil size={15} />
+                          </button>
+                        )}
+                        {item.calculado ? (
+                          <span style={{ width: 15 }} />
+                        ) : (
+                          <button className="no-print" onClick={() => removeItemManual(item.id)} title="Remover" style={{ background: "transparent", border: "none", color: "var(--ink-soft)", padding: 4, display: "flex" }}>
+                            <Trash2 size={15} />
+                          </button>
+                        )}
+                      </div>
+                    )
+                  )}
                   {itensCategoria.length === 0 && <p style={{ color: "var(--ink-soft)", fontSize: 13, padding: "10px 0" }}>Nenhum item ainda nesta categoria.</p>}
                 </div>
                 <div className="no-print" style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap", alignItems: "center" }}>
@@ -866,11 +1057,17 @@ export default function LevantamentoEletrico() {
                 const tipoObj = TIPOS_CIRCUITO.find((x) => x.value === t.tipo);
                 const finalidadeObj = FINALIDADES_CIRCUITO.find((x) => x.value === t.finalidade) || FINALIDADES_CIRCUITO[0];
                 return (
-                  <div key={t.id} style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10, alignItems: "center", padding: "9px 0", borderBottom: "1px solid var(--rule)", fontSize: 14 }}>
+                  <div key={t.id} style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: 10, alignItems: "center", padding: "9px 0", borderBottom: "1px solid var(--rule)", fontSize: 14, background: editandoCircuitoId === t.id ? "rgba(29,78,102,0.06)" : "transparent" }}>
                     <div>
                       <strong>{t.nome}</strong>
-                      <div style={{ fontSize: 12, color: "var(--ink-soft)" }}>{t.distancia} m · {tipoObj.label} · {t.bitola} mm² · {finalidadeObj.label}</div>
+                      <div style={{ fontSize: 12, color: "var(--ink-soft)" }}>
+                        {t.distancia} m · {tipoObj.label} · {t.bitola} mm² · {finalidadeObj.label}
+                        {Number(t.cabosPorFase) > 1 && ` · ${t.cabosPorFase}x cabos por fase/neutro`}
+                      </div>
                     </div>
+                    <button className="no-print" onClick={() => editarTrechoCircuito(t)} title="Editar" style={{ background: "transparent", border: "none", color: "var(--ink-soft)", padding: 4, display: "flex" }}>
+                      <Pencil size={15} />
+                    </button>
                     <button className="no-print" onClick={() => removerTrechoCircuito(t.id)} title="Remover circuito" style={{ background: "transparent", border: "none", color: "var(--ink-soft)", padding: 4, display: "flex" }}>
                       <Trash2 size={15} />
                     </button>
@@ -878,6 +1075,9 @@ export default function LevantamentoEletrico() {
                 );
               })}
 
+              {editandoCircuitoId && (
+                <p style={{ fontSize: 12, color: "var(--blue)", margin: "10px 0 0" }}>Editando circuito — ajuste os campos abaixo e clique em Salvar.</p>
+              )}
               <div className="no-print" style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
                 <label className="campo" style={{ flex: "2 1 150px" }}>Nome do circuito
                   <input type="text" placeholder="ex: Tomadas cozinha" value={formCircuito.nome || ""} onChange={(e) => setFormCircuito((p) => ({ ...p, nome: e.target.value }))} />
@@ -895,12 +1095,79 @@ export default function LevantamentoEletrico() {
                     {FINALIDADES_CIRCUITO.map((f) => (<option key={f.value} value={f.value}>{f.label}</option>))}
                   </select>
                 </label>
-                <label className="campo" style={{ width: 85 }}>Bitola (mm²)
-                  <input type="text" placeholder="2,5" value={formCircuito.bitola || ""} onChange={(e) => setFormCircuito((p) => ({ ...p, bitola: e.target.value }))} />
+                <label className="campo" style={{ width: 100 }}>Bitola (mm²)
+                  <SeletorBitola value={formCircuito.bitola} onChange={(v) => setFormCircuito((p) => ({ ...p, bitola: v }))} opcoes={BITOLAS_CABO} placeholder="ex: 2,5" />
+                </label>
+                <label className="campo" style={{ width: 130 }}>Cabos por fase/neutro
+                  <input type="number" step="1" min="1" placeholder="1" value={formCircuito.cabosPorFase || ""} onChange={(e) => setFormCircuito((p) => ({ ...p, cabosPorFase: e.target.value }))} />
                 </label>
                 <button onClick={adicionarTrechoCircuito} style={{ display: "flex", alignItems: "center", gap: 6, background: "var(--blue)", color: "white", border: "none", borderRadius: 3, padding: "8px 12px", fontSize: 13, fontWeight: 500, height: 34 }}>
-                  <Plus size={14} /> Calcular
+                  {editandoCircuitoId ? <><Check size={14} /> Salvar</> : <><Plus size={14} /> Calcular</>}
                 </button>
+                {editandoCircuitoId && (
+                  <button onClick={cancelarEdicaoCircuito} style={{ display: "flex", alignItems: "center", gap: 6, background: "transparent", color: "var(--ink-soft)", border: "1px solid var(--rule)", borderRadius: 3, padding: "8px 12px", fontSize: 13, height: 34 }}>
+                    Cancelar
+                  </button>
+                )}
+              </div>
+            </section>
+
+            {/* Terminais olhal de compressão */}
+            <section style={{ marginBottom: 32 }}>
+              <div style={{ borderLeft: "4px solid var(--yellow)", paddingLeft: 10, marginBottom: 10 }}>
+                <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 600, margin: 0 }}>Terminais olhal de compressão</h2>
+                <p style={{ fontSize: 13, color: "var(--ink-soft)", margin: "2px 0 0" }}>
+                  Mesma lógica dos cabos (tipo de circuito + cabos por fase), mas conta os terminais nas duas pontas de cada condutor. Ex: 2x trifásico 185mm → 9 condutores × 2 pontas = 18 terminais.
+                </p>
+              </div>
+
+              {trechosTerminal.map((t) => {
+                const tipoObj = TIPOS_CIRCUITO.find((x) => x.value === t.tipo);
+                return (
+                  <div key={t.id} style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: 10, alignItems: "center", padding: "9px 0", borderBottom: "1px solid var(--rule)", fontSize: 14, background: editandoTerminalId === t.id ? "rgba(29,78,102,0.06)" : "transparent" }}>
+                    <div>
+                      <strong>{t.nome}</strong>
+                      <div style={{ fontSize: 12, color: "var(--ink-soft)" }}>
+                        {tipoObj?.label} · {t.bitola}
+                        {Number(t.cabosPorFase) > 1 && ` · ${t.cabosPorFase}x cabos por fase/neutro`}
+                      </div>
+                    </div>
+                    <button className="no-print" onClick={() => editarTrechoTerminal(t)} title="Editar" style={{ background: "transparent", border: "none", color: "var(--ink-soft)", padding: 4, display: "flex" }}>
+                      <Pencil size={15} />
+                    </button>
+                    <button className="no-print" onClick={() => removerTrechoTerminal(t.id)} title="Remover" style={{ background: "transparent", border: "none", color: "var(--ink-soft)", padding: 4, display: "flex" }}>
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                );
+              })}
+
+              {editandoTerminalId && (
+                <p style={{ fontSize: 12, color: "var(--blue)", margin: "10px 0 0" }}>Editando terminais — ajuste os campos abaixo e clique em Salvar.</p>
+              )}
+              <div className="no-print" style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
+                <label className="campo" style={{ flex: "1 1 130px" }}>Nome/ambiente
+                  <input type="text" placeholder="ex: Alimentador QGBT" value={formTerminal.nome || ""} onChange={(e) => setFormTerminal((p) => ({ ...p, nome: e.target.value }))} />
+                </label>
+                <label className="campo" style={{ width: 190 }}>Tipo
+                  <select value={formTerminal.tipo} onChange={(e) => setFormTerminal((p) => ({ ...p, tipo: e.target.value }))}>
+                    {TIPOS_CIRCUITO.map((t) => (<option key={t.value} value={t.value}>{t.label}</option>))}
+                  </select>
+                </label>
+                <label className="campo" style={{ width: 130 }}>Cabos por fase/neutro
+                  <input type="number" step="1" min="1" placeholder="1" value={formTerminal.cabosPorFase || ""} onChange={(e) => setFormTerminal((p) => ({ ...p, cabosPorFase: e.target.value }))} />
+                </label>
+                <label className="campo" style={{ width: 130 }}>Bitola
+                  <SeletorBitola value={formTerminal.bitola} onChange={(v) => setFormTerminal((p) => ({ ...p, bitola: v }))} opcoes={BITOLAS_TERMINAL} placeholder="ex: 10mm" />
+                </label>
+                <button onClick={adicionarTrechoTerminal} style={{ display: "flex", alignItems: "center", gap: 6, background: "var(--blue)", color: "white", border: "none", borderRadius: 3, padding: "8px 12px", fontSize: 13, fontWeight: 500, height: 34 }}>
+                  {editandoTerminalId ? <><Check size={14} /> Salvar</> : <><Plus size={14} /> Calcular</>}
+                </button>
+                {editandoTerminalId && (
+                  <button onClick={cancelarEdicaoTerminal} style={{ display: "flex", alignItems: "center", gap: 6, background: "transparent", color: "var(--ink-soft)", border: "1px solid var(--rule)", borderRadius: 3, padding: "8px 12px", fontSize: 13, height: 34 }}>
+                    Cancelar
+                  </button>
+                )}
               </div>
             </section>
 
@@ -915,7 +1182,7 @@ export default function LevantamentoEletrico() {
                 const tipoInfo = TIPOS_INFRA.find((x) => x.value === t.tipo) || TIPOS_INFRA[0];
                 const roscadaInfo = OPCOES_BARRA_ROSCADA.find((x) => x.value === t.barraRoscada);
                 return (
-                  <div key={t.id} style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10, alignItems: "center", padding: "9px 0", borderBottom: "1px solid var(--rule)", fontSize: 14 }}>
+                  <div key={t.id} style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: 10, alignItems: "center", padding: "9px 0", borderBottom: "1px solid var(--rule)", fontSize: 14, background: editandoInfraId === t.id ? "rgba(29,78,102,0.06)" : "transparent" }}>
                     <div>
                       <strong>{t.nome}</strong>
                       <div style={{ fontSize: 12, color: "var(--ink-soft)" }}>
@@ -923,6 +1190,9 @@ export default function LevantamentoEletrico() {
                         {t.barraRoscada && t.barraRoscada !== "nao" && ` · sustentação ${roscadaInfo?.label.toLowerCase()}`}
                       </div>
                     </div>
+                    <button className="no-print" onClick={() => editarTrechoInfra(t)} title="Editar" style={{ background: "transparent", border: "none", color: "var(--ink-soft)", padding: 4, display: "flex" }}>
+                      <Pencil size={15} />
+                    </button>
                     <button className="no-print" onClick={() => removerTrechoInfra(t.id)} title="Remover trecho" style={{ background: "transparent", border: "none", color: "var(--ink-soft)", padding: 4, display: "flex" }}>
                       <Trash2 size={15} />
                     </button>
@@ -930,6 +1200,9 @@ export default function LevantamentoEletrico() {
                 );
               })}
 
+              {editandoInfraId && (
+                <p style={{ fontSize: 12, color: "var(--blue)", margin: "10px 0 0" }}>Editando trecho — ajuste os campos abaixo e clique em Salvar.</p>
+              )}
               <div className="no-print" style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
                 <label className="campo" style={{ width: 170 }}>Tipo de infraestrutura
                   <select
@@ -937,7 +1210,7 @@ export default function LevantamentoEletrico() {
                     onChange={(e) => {
                       const tipo = e.target.value;
                       const tipoInfo = TIPOS_INFRA.find((x) => x.value === tipo);
-                      setFormInfra((p) => ({ ...p, tipo, dimensao: p.dimensao || tipoInfo.placeholderDimensao }));
+                      setFormInfra((p) => ({ ...p, tipo, dimensao: p.dimensao || tipoInfo.opcoesDimensao[0] }));
                     }}
                   >
                     {TIPOS_INFRA.map((t) => (<option key={t.value} value={t.value}>{t.label}</option>))}
@@ -949,8 +1222,13 @@ export default function LevantamentoEletrico() {
                 <label className="campo" style={{ width: 100 }}>Distância (m)
                   <input type="number" step="0.1" min="0" value={formInfra.distancia || ""} onChange={(e) => setFormInfra((p) => ({ ...p, distancia: e.target.value }))} />
                 </label>
-                <label className="campo" style={{ width: 130 }}>{TIPOS_INFRA.find((x) => x.value === formInfra.tipo)?.labelDimensao || "Dimensão"}
-                  <input type="text" placeholder={TIPOS_INFRA.find((x) => x.value === formInfra.tipo)?.placeholderDimensao} value={formInfra.dimensao || ""} onChange={(e) => setFormInfra((p) => ({ ...p, dimensao: e.target.value }))} />
+                <label className="campo" style={{ width: 150 }}>{TIPOS_INFRA.find((x) => x.value === formInfra.tipo)?.labelDimensao || "Dimensão"}
+                  <SeletorBitola
+                    value={formInfra.dimensao}
+                    onChange={(v) => setFormInfra((p) => ({ ...p, dimensao: v }))}
+                    opcoes={TIPOS_INFRA.find((x) => x.value === formInfra.tipo)?.opcoesDimensao || []}
+                    placeholder="digite a dimensão"
+                  />
                 </label>
                 {formInfra.tipo !== "eletroduto" && (
                   <label className="campo" style={{ width: 210 }}>Sustentação por barra roscada?
@@ -960,8 +1238,13 @@ export default function LevantamentoEletrico() {
                   </label>
                 )}
                 <button onClick={adicionarTrechoInfra} style={{ display: "flex", alignItems: "center", gap: 6, background: "var(--blue)", color: "white", border: "none", borderRadius: 3, padding: "8px 12px", fontSize: 13, fontWeight: 500, height: 34 }}>
-                  <Plus size={14} /> Calcular
+                  {editandoInfraId ? <><Check size={14} /> Salvar</> : <><Plus size={14} /> Calcular</>}
                 </button>
+                {editandoInfraId && (
+                  <button onClick={cancelarEdicaoInfra} style={{ display: "flex", alignItems: "center", gap: 6, background: "transparent", color: "var(--ink-soft)", border: "1px solid var(--rule)", borderRadius: 3, padding: "8px 12px", fontSize: 13, height: 34 }}>
+                    Cancelar
+                  </button>
+                )}
               </div>
             </section>
 
@@ -975,7 +1258,7 @@ export default function LevantamentoEletrico() {
               </div>
 
               {trechosTomada.map((t) => (
-                <div key={t.id} style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10, alignItems: "center", padding: "9px 0", borderBottom: "1px solid var(--rule)", fontSize: 14 }}>
+                <div key={t.id} style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: 10, alignItems: "center", padding: "9px 0", borderBottom: "1px solid var(--rule)", fontSize: 14, background: editandoTomadaId === t.id ? "rgba(29,78,102,0.06)" : "transparent" }}>
                   <div>
                     <strong>{t.nome}</strong>
                     <div style={{ fontSize: 12, color: "var(--ink-soft)" }}>
@@ -987,11 +1270,17 @@ export default function LevantamentoEletrico() {
                       {t.tipo === "industrial" && t.fase === "tri" && ` · trifásico ${PADROES_TRIFASICO_INDUSTRIAL.find((p) => p.value === t.padraoTrifasico)?.label || ""}`}
                     </div>
                   </div>
+                  <button className="no-print" onClick={() => editarTrechoTomada(t)} title="Editar" style={{ background: "transparent", border: "none", color: "var(--ink-soft)", padding: 4, display: "flex" }}>
+                    <Pencil size={15} />
+                  </button>
                   <button className="no-print" onClick={() => removerTrechoTomada(t.id)} title="Remover" style={{ background: "transparent", border: "none", color: "var(--ink-soft)", padding: 4, display: "flex" }}>
                     <Trash2 size={15} />
                   </button>
                 </div>
               ))}
+              {editandoTomadaId && (
+                <p style={{ fontSize: 12, color: "var(--blue)", margin: "10px 0 0" }}>Editando tomadas — ajuste os campos abaixo e clique em Salvar.</p>
+              )}
 
               <div className="no-print" style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
                 <label className="campo" style={{ width: 170 }}>Tipo de tomada
@@ -1018,8 +1307,8 @@ export default function LevantamentoEletrico() {
                         {CORES_CONDULETE.map((c) => (<option key={c} value={c}>{c}</option>))}
                       </select>
                     </label>
-                    <label className="campo" style={{ width: 100 }}>Bitola da caixa
-                      <input type="text" placeholder='3/4"' value={formTomada.bitola || ""} onChange={(e) => setFormTomada((p) => ({ ...p, bitola: e.target.value }))} />
+                    <label className="campo" style={{ width: 130 }}>Bitola da caixa
+                      <SeletorBitola value={formTomada.bitola} onChange={(v) => setFormTomada((p) => ({ ...p, bitola: v }))} opcoes={TIPOS_INFRA.find((x) => x.value === "eletroduto").opcoesDimensao} placeholder='ex: 3/4"' />
                     </label>
                   </>
                 )}
@@ -1059,12 +1348,63 @@ export default function LevantamentoEletrico() {
                 )}
 
                 <button onClick={adicionarTrechoTomada} style={{ display: "flex", alignItems: "center", gap: 6, background: "var(--blue)", color: "white", border: "none", borderRadius: 3, padding: "8px 12px", fontSize: 13, fontWeight: 500, height: 34 }}>
-                  <Plus size={14} /> Calcular
+                  {editandoTomadaId ? <><Check size={14} /> Salvar</> : <><Plus size={14} /> Calcular</>}
                 </button>
+                {editandoTomadaId && (
+                  <button onClick={cancelarEdicaoTomada} style={{ display: "flex", alignItems: "center", gap: 6, background: "transparent", color: "var(--ink-soft)", border: "1px solid var(--rule)", borderRadius: 3, padding: "8px 12px", fontSize: 13, height: 34 }}>
+                    Cancelar
+                  </button>
+                )}
               </div>
             </section>
           </div>
         )}
+
+        {visao === "imprimir" && (() => {
+          const filtra = (arr) => (soPendentes ? arr.filter((i) => !i.adquirido) : arr);
+          const grupos = tipoImpressao === "geral"
+            ? listaGeralAgrupada.map((g) => ({ titulo: g.grupo, itens: filtra(g.itens) }))
+            : categorias.map((c) => ({ titulo: c, itens: filtra(itensCombinados.filter((i) => i.categoria === c)) }));
+          const visiveis = grupos.filter((g) => g.itens.length > 0);
+          const opt = (ativo) => ({ background: ativo ? "var(--ink)" : "transparent", color: ativo ? "#F5F5F2" : "var(--ink)", border: "1px solid var(--ink)", borderRadius: 3, padding: "7px 12px", fontSize: 13 });
+          return (
+            <div>
+              <div className="no-print" style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginBottom: 20 }}>
+                <button style={opt(tipoImpressao === "categorias")} onClick={() => setTipoImpressao("categorias")}>Por categoria</button>
+                <button style={opt(tipoImpressao === "geral")} onClick={() => setTipoImpressao("geral")}>Lista geral</button>
+                <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, marginLeft: 6 }}>
+                  <input type="checkbox" checked={soPendentes} onChange={(e) => setSoPendentes(e.target.checked)} /> Só o que falta comprar
+                </label>
+                <button onClick={() => window.print()} style={{ marginLeft: "auto", background: "var(--yellow)", color: "var(--ink)", border: "none", borderRadius: 3, padding: "9px 14px", fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
+                  <Printer size={16} /> Gerar PDF
+                </button>
+              </div>
+              <div style={{ background: "white", border: "1px solid #ddd", padding: 20 }}>
+                <h2 style={{ margin: "0 0 2px", fontSize: 18 }}>{obra || "Levantamento de material elétrico"}</h2>
+                <div style={{ fontSize: 12, color: "#666", marginBottom: 14 }}>
+                  {tipoImpressao === "geral" ? "Lista geral" : "Lista por categoria"}{soPendentes ? " — pendentes" : ""} · {new Date().toLocaleDateString("pt-BR")}
+                </div>
+                {visiveis.length === 0 && <div style={{ fontSize: 13, color: "#666" }}>Nenhum item para imprimir.</div>}
+                {visiveis.map((g) => (
+                  <div key={g.titulo} style={{ marginBottom: 16, breakInside: "avoid" }}>
+                    <div style={{ fontWeight: 600, fontSize: 14, borderBottom: "1px solid #333", paddingBottom: 3, marginBottom: 4 }}>{g.titulo}</div>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                      <tbody>
+                        {g.itens.map((i, idx) => (
+                          <tr key={idx} style={{ borderBottom: "1px solid #eee" }}>
+                            <td style={{ padding: "4px 0", width: 22 }}>{i.adquirido ? "☑" : "☐"}</td>
+                            <td style={{ padding: "4px 0" }}>{i.nome}</td>
+                            <td style={{ padding: "4px 0", textAlign: "right", whiteSpace: "nowrap" }}>{String(i.quantidade).replace(".", ",")} {i.unidade}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
 
         {visao === "geral" && (
           <section>
@@ -1101,6 +1441,34 @@ export default function LevantamentoEletrico() {
         )}
       </div>
     </div>
+  );
+}
+
+function SeletorBitola({ value, onChange, opcoes, placeholder }) {
+  const emOutro = !value || !opcoes.includes(value);
+  return (
+    <>
+      <select
+        value={emOutro ? OUTRO : value}
+        onChange={(e) => {
+          const v = e.target.value;
+          onChange(v === OUTRO ? "" : v);
+        }}
+      >
+        {opcoes.map((o) => (<option key={o} value={o}>{o}</option>))}
+        <option value={OUTRO}>Outra (digitar)</option>
+      </select>
+      {emOutro && (
+        <input
+          type="text"
+          placeholder={placeholder || "digite o valor"}
+          value={value || ""}
+          onChange={(e) => onChange(e.target.value)}
+          style={{ marginTop: 4 }}
+          autoFocus
+        />
+      )}
+    </>
   );
 }
 
