@@ -1,10 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import LevantamentoEletrico from "@/components/LevantamentoEletrico";
+import { supabase } from "@/integrations/supabase/client";
 // @ts-ignore
 import SeletorObras from "@/components/SeletorObras";
 // @ts-ignore
+import TelaLogin from "@/components/TelaLogin";
+// @ts-ignore
 import { obraAtual } from "@/lib/local-storage-api";
+// @ts-ignore
+import { iniciarSync, pararSync, ouvirEstado } from "@/lib/nuvem-sync";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -29,11 +34,49 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
+  const [userId, setUserId] = useState<string | null | undefined>(undefined);
+  const [email, setEmail] = useState("");
+  const [pronto, setPronto] = useState(false);
   const [obra, setObra] = useState<string | null>(null);
-  useEffect(() => setObra(obraAtual()), []);
-  if (!obra) return null;
+  const [estado, setEstado] = useState("salvo");
+
+  useEffect(() => {
+    const { data } = supabase.auth.onAuthStateChange((_e, session) => {
+      setUserId(session?.user.id ?? null);
+      setEmail(session?.user.email ?? "");
+    });
+    supabase.auth.getSession().then(({ data }) => {
+      setUserId(data.session?.user.id ?? null);
+      setEmail(data.session?.user.email ?? "");
+    });
+    const off = ouvirEstado(setEstado);
+    return () => { data.subscription.unsubscribe(); off(); };
+  }, []);
+
+  useEffect(() => {
+    setPronto(false);
+    if (!userId) return;
+    let ativo = true;
+    iniciarSync(userId)
+      .catch((e: unknown) => console.error(e))
+      .finally(() => { if (ativo) { setObra(obraAtual()); setPronto(true); } });
+    return () => { ativo = false; };
+  }, [userId]);
+
+  if (userId === undefined) return null;
+  if (!userId) return <TelaLogin />;
+  if (!pronto || !obra) return <p style={{ padding: 24 }}>Carregando suas obras...</p>;
+
+  const sair = async () => { await pararSync(); await supabase.auth.signOut(); };
+  const textoEstado = estado === "salvando" ? "Salvando..." : estado === "erro" ? "Sem conexão — tentando de novo" : "Tudo salvo na nuvem";
+
   return (
     <>
+      <div className="no-print" style={{ background: "#1C1F22", color: "#9AA0A4", padding: "6px 20px", display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", fontSize: 12 }}>
+        <span style={{ color: estado === "erro" ? "#E8A33D" : "#8FC79A" }}>● {textoEstado}</span>
+        <span style={{ marginLeft: "auto" }}>{email}</span>
+        <button onClick={sair} style={{ background: "transparent", border: "1px solid #4A4F54", color: "#F5F5F2", borderRadius: 3, padding: "3px 8px", cursor: "pointer", fontSize: 12 }}>Sair</button>
+      </div>
       <SeletorObras atual={obra} onTrocar={setObra} />
       <LevantamentoEletrico key={obra} />
     </>
