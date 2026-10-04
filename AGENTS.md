@@ -8,3 +8,5 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- App data stays in localStorage and is mirrored per user to the `dados_usuario` table via src/lib/nuvem-sync.js — keeps the original component untouched while syncing across devices.
