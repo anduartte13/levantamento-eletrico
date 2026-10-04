@@ -3,6 +3,9 @@
 const LISTA = "obras:lista";
 const ATUAL = "obras:atual";
 
+import { marcar } from "./nuvem-sync";
+const put = (k, v) => { window.localStorage.setItem(k, v); marcar(k, v); };
+const del = (k) => { window.localStorage.removeItem(k); marcar(k, null); };
 const ls = () => (typeof window === "undefined" ? null : window.localStorage);
 
 function chaveReal(id, key) {
@@ -16,7 +19,7 @@ export function listarObras() {
   try { lista = JSON.parse(s.getItem(LISTA) || "[]"); } catch { lista = []; }
   if (!lista.length) {
     lista = [{ id: "padrao" }];
-    s.setItem(LISTA, JSON.stringify(lista));
+    put(LISTA, JSON.stringify(lista));
   }
   return lista.map((o) => {
     let nome = "";
@@ -37,7 +40,7 @@ export function selecionarObra(id) {
 }
 
 function salvarLista(ids) {
-  ls()?.setItem(LISTA, JSON.stringify(ids.map((id) => ({ id }))));
+  put(LISTA, JSON.stringify(ids.map((id) => ({ id }))));
 }
 
 function chavesDaObra(id) {
@@ -53,7 +56,7 @@ function chavesDaObra(id) {
 export function criarObra(nome = "") {
   const id = Date.now().toString(36);
   salvarLista([...listarObras().map((o) => o.id), id]);
-  ls().setItem(chaveReal(id, "levantamento:meta"), JSON.stringify({ obra: nome }));
+  put(chaveReal(id, "levantamento:meta"), JSON.stringify({ obra: nome }));
   selecionarObra(id);
   return id;
 }
@@ -63,12 +66,12 @@ export function duplicarObra(origem) {
   const id = Date.now().toString(36);
   for (const k of chavesDaObra(origem)) {
     const base = origem === "padrao" ? k : k.slice(`obra:${origem}:`.length);
-    s.setItem(chaveReal(id, base), s.getItem(k));
+    put(chaveReal(id, base), s.getItem(k));
   }
   try {
     const meta = JSON.parse(s.getItem(chaveReal(id, "levantamento:meta")) || "{}");
     meta.obra = `${meta.obra || "Obra"} (cópia)`;
-    s.setItem(chaveReal(id, "levantamento:meta"), JSON.stringify(meta));
+    put(chaveReal(id, "levantamento:meta"), JSON.stringify(meta));
   } catch {}
   salvarLista([...listarObras().map((o) => o.id), id]);
   selecionarObra(id);
@@ -77,7 +80,7 @@ export function duplicarObra(origem) {
 
 export function excluirObra(id) {
   const s = ls();
-  for (const k of chavesDaObra(id)) s.removeItem(k);
+  for (const k of chavesDaObra(id)) del(k);
   const resto = listarObras().map((o) => o.id).filter((x) => x !== id);
   if (!resto.length) resto.push(Date.now().toString(36));
   salvarLista(resto);
@@ -92,9 +95,9 @@ export const storage = {
     return value === null ? null : { value };
   },
   async set(key, value) {
-    ls()?.setItem(chaveReal(obraAtual(), key), value);
+    if (ls()) put(chaveReal(obraAtual(), key), value);
   },
   async delete(key) {
-    ls()?.removeItem(chaveReal(obraAtual(), key));
+    if (ls()) del(chaveReal(obraAtual(), key));
   },
 };
