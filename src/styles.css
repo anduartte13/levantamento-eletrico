@@ -142,3 +142,10 @@
     color: var(--color-foreground);
   }
 }
+
+@layer base {
+  :where(button, a, input, select, textarea, [tabindex]):focus-visible {
+    outline: 3px solid #ffb000;
+    outline-offset: 2px;
+  }
+}
