@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { storage } from "@/lib/local-storage-api";
 import {
   Plus,
@@ -471,6 +471,18 @@ export default function LevantamentoEletrico() {
     }));
   }, [trechosCircuito, trechosInfra, trechosTomada, trechosTerminal, regras, statusAdquiridoCalc]);
 
+  // Anúncio para leitores de tela quando os resultados calculados mudam
+  const [anuncioCalc, setAnuncioCalc] = useState("");
+  const calcInicial = useRef(true);
+  useEffect(() => {
+    if (calcInicial.current) { calcInicial.current = false; return; }
+    const t = setTimeout(() => {
+      const n = itensCalculados.length;
+      setAnuncioCalc(n === 0 ? "Resultados da calculadora atualizados: nenhum material calculado." : `Resultados da calculadora atualizados: ${n} ${n === 1 ? "material calculado" : "materiais calculados"}.`);
+    }, 600);
+    return () => clearTimeout(t);
+  }, [itensCalculados]);
+
   const itensCombinados = useMemo(
     () => [...itensManual, ...itensCalculados].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")),
     [itensManual, itensCalculados]
@@ -843,6 +855,7 @@ export default function LevantamentoEletrico() {
         </div>
       </div>
 
+      <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">{anuncioCalc}</div>
       {erro && <div className="no-print" style={{ margin: "10px 20px 0", fontSize: 13, color: "var(--red)" }}>{erro}</div>}
 
       <div style={{ maxWidth: 760, margin: "0 auto", padding: "24px 20px 0" }}>
