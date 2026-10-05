@@ -818,20 +818,20 @@ export default function LevantamentoEletrico() {
             <div style={{ fontFamily: "'IBM Plex Mono', monospace" }}>{totalAdquiridos}/{totalItens}</div>
           </div>
           <div role="group" aria-label="Seções do app" style={{ display: "flex", border: "1px solid #4A4F54", borderRadius: 4, overflow: "hidden" }}>
-            <button aria-pressed={visao === "categorias"} onClick={() => setVisao("categorias")} title="Ver por categoria" style={{ background: visao === "categorias" ? "#F5F5F2" : "transparent", color: visao === "categorias" ? "var(--ink)" : "#F5F5F2", border: "none", padding: "7px 10px", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
+            <button aria-pressed={visao === "categorias"} onClick={() => setVisao("categorias")} title="Ver por categoria" aria-label="Ver por categoria" style={{ background: visao === "categorias" ? "#F5F5F2" : "transparent", color: visao === "categorias" ? "var(--ink)" : "#F5F5F2", border: "none", padding: "7px 10px", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
               <LayoutGrid size={16} /> Itens
             </button>
-            <button aria-pressed={visao === "calculadora"} onClick={() => setVisao("calculadora")} title="Calculadora de cabos e infraestrutura" style={{ background: visao === "calculadora" ? "#F5F5F2" : "transparent", color: visao === "calculadora" ? "var(--ink)" : "#F5F5F2", border: "none", padding: "7px 10px", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
+            <button aria-pressed={visao === "calculadora"} onClick={() => setVisao("calculadora")} title="Calculadora de cabos e infraestrutura" aria-label="Calculadora de cabos e infraestrutura" style={{ background: visao === "calculadora" ? "#F5F5F2" : "transparent", color: visao === "calculadora" ? "var(--ink)" : "#F5F5F2", border: "none", padding: "7px 10px", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
               <Calculator size={16} /> Calculadora
             </button>
-            <button aria-pressed={visao === "geral"} onClick={() => setVisao("geral")} title="Ver lista geral" style={{ background: visao === "geral" ? "#F5F5F2" : "transparent", color: visao === "geral" ? "var(--ink)" : "#F5F5F2", border: "none", padding: "7px 10px", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
+            <button aria-pressed={visao === "geral"} onClick={() => setVisao("geral")} title="Ver lista geral" aria-label="Ver lista geral" style={{ background: visao === "geral" ? "#F5F5F2" : "transparent", color: visao === "geral" ? "var(--ink)" : "#F5F5F2", border: "none", padding: "7px 10px", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
               <List size={16} /> Geral
             </button>
-            <button aria-pressed={visao === "imprimir"} onClick={() => setVisao("imprimir")} title="Imprimir listas em PDF" style={{ background: visao === "imprimir" ? "#F5F5F2" : "transparent", color: visao === "imprimir" ? "var(--ink)" : "#F5F5F2", border: "none", padding: "7px 10px", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
+            <button aria-pressed={visao === "imprimir"} onClick={() => setVisao("imprimir")} title="Imprimir listas em PDF" aria-label="Imprimir listas em PDF" style={{ background: visao === "imprimir" ? "#F5F5F2" : "transparent", color: visao === "imprimir" ? "var(--ink)" : "#F5F5F2", border: "none", padding: "7px 10px", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
               <Printer size={16} /> Imprimir
             </button>
           </div>
-          <button onClick={() => window.print()} title="Imprimir" style={{ background: "transparent", border: "1px solid #4A4F54", borderRadius: 3, color: "#F5F5F2", padding: 7, display: "flex" }}>
+          <button onClick={() => window.print()} title="Imprimir" aria-label="Imprimir" style={{ background: "transparent", border: "1px solid #4A4F54", borderRadius: 3, color: "#F5F5F2", padding: 7, display: "flex" }}>
             <Printer size={16} />
           </button>
           <button onClick={exportarCSV} title="Exportar CSV" aria-label="Exportar CSV" style={{ background: "transparent", border: "1px solid #4A4F54", borderRadius: 3, color: "#F5F5F2", padding: 7, display: "flex" }}>
@@ -877,7 +877,7 @@ export default function LevantamentoEletrico() {
                         <select value={itemEditDraft.unidade || "un"} onChange={(e) => setItemEditDraft((p) => ({ ...p, unidade: e.target.value }))} style={{ width: 66 }}>
                           {UNIDADES.map((u) => (<option key={u} value={u}>{u}</option>))}
                         </select>
-                        <button className="no-print" onClick={() => salvarItemManual(item.id)} title="Salvar" style={{ background: "var(--green)", border: "none", borderRadius: 4, color: "white", padding: 6, display: "flex" }}>
+                        <button className="no-print" onClick={() => salvarItemManual(item.id)} title="Salvar" aria-label="Salvar" style={{ background: "var(--green)", border: "none", borderRadius: 4, color: "white", padding: 6, display: "flex" }}>
                           <Check size={14} />
                         </button>
                         <button className="no-print" onClick={cancelarEdicaoItem} title="Cancelar" aria-label="Cancelar" style={{ background: "transparent", border: "1px solid var(--rule)", borderRadius: 4, color: "var(--ink-soft)", padding: 6, display: "flex" }}>
@@ -886,7 +886,7 @@ export default function LevantamentoEletrico() {
                       </div>
                     ) : (
                       <div key={item.id} style={{ display: "grid", gridTemplateColumns: "auto 1fr auto auto auto", alignItems: "center", gap: 10, padding: "9px 0", borderBottom: "1px solid var(--rule)", fontSize: 14, opacity: item.adquirido ? 0.55 : 1 }}>
-                        <button className="no-print" onClick={() => toggleAdquirido(item)} title={item.adquirido ? "Marcar como pendente" : "Marcar como adquirido"} style={{ width: 22, height: 22, borderRadius: 4, border: `1px solid ${item.adquirido ? "var(--green)" : "var(--rule)"}`, background: item.adquirido ? "var(--green)" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", color: "white" }}>
+                        <button className="no-print" onClick={() => toggleAdquirido(item)} title={item.adquirido ? "Marcar como pendente" : "Marcar como adquirido"} aria-label={item.adquirido ? "Marcar como pendente" : "Marcar como adquirido"} style={{ width: 22, height: 22, borderRadius: 4, border: `1px solid ${item.adquirido ? "var(--green)" : "var(--rule)"}`, background: item.adquirido ? "var(--green)" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", color: "white" }}>
                           {item.adquirido && <Check size={13} />}
                         </button>
                         <span style={{ textDecoration: item.adquirido ? "line-through" : "none" }}>
@@ -899,14 +899,14 @@ export default function LevantamentoEletrico() {
                         {item.calculado ? (
                           <span style={{ width: 15 }} />
                         ) : (
-                          <button className="no-print" onClick={() => editarItemManual(item)} title="Editar" style={{ background: "transparent", border: "none", color: "var(--ink-soft)", padding: 4, display: "flex" }}>
+                          <button className="no-print" onClick={() => editarItemManual(item)} title="Editar" aria-label="Editar" style={{ background: "transparent", border: "none", color: "var(--ink-soft)", padding: 4, display: "flex" }}>
                             <Pencil size={15} />
                           </button>
                         )}
                         {item.calculado ? (
                           <span style={{ width: 15 }} />
                         ) : (
-                          <button className="no-print" onClick={() => removeItemManual(item.id)} title="Remover" style={{ background: "transparent", border: "none", color: "var(--ink-soft)", padding: 4, display: "flex" }}>
+                          <button className="no-print" onClick={() => removeItemManual(item.id)} title="Remover" aria-label="Remover" style={{ background: "transparent", border: "none", color: "var(--ink-soft)", padding: 4, display: "flex" }}>
                             <Trash2 size={15} />
                           </button>
                         )}
@@ -1067,10 +1067,10 @@ export default function LevantamentoEletrico() {
                         {Number(t.cabosPorFase) > 1 && ` · ${t.cabosPorFase}x cabos por fase/neutro`}
                       </div>
                     </div>
-                    <button className="no-print" onClick={() => editarTrechoCircuito(t)} title="Editar" style={{ background: "transparent", border: "none", color: "var(--ink-soft)", padding: 4, display: "flex" }}>
+                    <button className="no-print" onClick={() => editarTrechoCircuito(t)} title="Editar" aria-label="Editar" style={{ background: "transparent", border: "none", color: "var(--ink-soft)", padding: 4, display: "flex" }}>
                       <Pencil size={15} />
                     </button>
-                    <button className="no-print" onClick={() => removerTrechoCircuito(t.id)} title="Remover circuito" style={{ background: "transparent", border: "none", color: "var(--ink-soft)", padding: 4, display: "flex" }}>
+                    <button className="no-print" onClick={() => removerTrechoCircuito(t.id)} title="Remover circuito" aria-label="Remover circuito" style={{ background: "transparent", border: "none", color: "var(--ink-soft)", padding: 4, display: "flex" }}>
                       <Trash2 size={15} />
                     </button>
                   </div>
@@ -1134,10 +1134,10 @@ export default function LevantamentoEletrico() {
                         {Number(t.cabosPorFase) > 1 && ` · ${t.cabosPorFase}x cabos por fase/neutro`}
                       </div>
                     </div>
-                    <button className="no-print" onClick={() => editarTrechoTerminal(t)} title="Editar" style={{ background: "transparent", border: "none", color: "var(--ink-soft)", padding: 4, display: "flex" }}>
+                    <button className="no-print" onClick={() => editarTrechoTerminal(t)} title="Editar" aria-label="Editar" style={{ background: "transparent", border: "none", color: "var(--ink-soft)", padding: 4, display: "flex" }}>
                       <Pencil size={15} />
                     </button>
-                    <button className="no-print" onClick={() => removerTrechoTerminal(t.id)} title="Remover" style={{ background: "transparent", border: "none", color: "var(--ink-soft)", padding: 4, display: "flex" }}>
+                    <button className="no-print" onClick={() => removerTrechoTerminal(t.id)} title="Remover" aria-label="Remover" style={{ background: "transparent", border: "none", color: "var(--ink-soft)", padding: 4, display: "flex" }}>
                       <Trash2 size={15} />
                     </button>
                   </div>
@@ -1192,10 +1192,10 @@ export default function LevantamentoEletrico() {
                         {t.barraRoscada && t.barraRoscada !== "nao" && ` · sustentação ${roscadaInfo?.label.toLowerCase()}`}
                       </div>
                     </div>
-                    <button className="no-print" onClick={() => editarTrechoInfra(t)} title="Editar" style={{ background: "transparent", border: "none", color: "var(--ink-soft)", padding: 4, display: "flex" }}>
+                    <button className="no-print" onClick={() => editarTrechoInfra(t)} title="Editar" aria-label="Editar" style={{ background: "transparent", border: "none", color: "var(--ink-soft)", padding: 4, display: "flex" }}>
                       <Pencil size={15} />
                     </button>
-                    <button className="no-print" onClick={() => removerTrechoInfra(t.id)} title="Remover trecho" style={{ background: "transparent", border: "none", color: "var(--ink-soft)", padding: 4, display: "flex" }}>
+                    <button className="no-print" onClick={() => removerTrechoInfra(t.id)} title="Remover trecho" aria-label="Remover trecho" style={{ background: "transparent", border: "none", color: "var(--ink-soft)", padding: 4, display: "flex" }}>
                       <Trash2 size={15} />
                     </button>
                   </div>
@@ -1272,10 +1272,10 @@ export default function LevantamentoEletrico() {
                       {t.tipo === "industrial" && t.fase === "tri" && ` · trifásico ${PADROES_TRIFASICO_INDUSTRIAL.find((p) => p.value === t.padraoTrifasico)?.label || ""}`}
                     </div>
                   </div>
-                  <button className="no-print" onClick={() => editarTrechoTomada(t)} title="Editar" style={{ background: "transparent", border: "none", color: "var(--ink-soft)", padding: 4, display: "flex" }}>
+                  <button className="no-print" onClick={() => editarTrechoTomada(t)} title="Editar" aria-label="Editar" style={{ background: "transparent", border: "none", color: "var(--ink-soft)", padding: 4, display: "flex" }}>
                     <Pencil size={15} />
                   </button>
-                  <button className="no-print" onClick={() => removerTrechoTomada(t.id)} title="Remover" style={{ background: "transparent", border: "none", color: "var(--ink-soft)", padding: 4, display: "flex" }}>
+                  <button className="no-print" onClick={() => removerTrechoTomada(t.id)} title="Remover" aria-label="Remover" style={{ background: "transparent", border: "none", color: "var(--ink-soft)", padding: 4, display: "flex" }}>
                     <Trash2 size={15} />
                   </button>
                 </div>
