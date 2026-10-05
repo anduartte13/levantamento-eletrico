@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import LevantamentoEletrico from "@/components/LevantamentoEletrico";
 import { supabase } from "@/integrations/supabase/client";
 // @ts-ignore
@@ -39,6 +39,14 @@ function Index() {
   const [pronto, setPronto] = useState(false);
   const [obra, setObra] = useState<string | null>(null);
   const [estado, setEstado] = useState("salvo");
+  const [anuncioSalvo, setAnuncioSalvo] = useState("");
+  const estadoAnterior = useRef("salvo");
+  useEffect(() => {
+    const antes = estadoAnterior.current;
+    estadoAnterior.current = estado;
+    if (estado === "salvo" && antes !== "salvo") setAnuncioSalvo(`Salvamento concluído às ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`);
+    else if (estado === "erro" && antes !== "erro") setAnuncioSalvo("Sem conexão. As alterações serão salvas quando a internet voltar.");
+  }, [estado]);
 
   useEffect(() => {
     const { data } = supabase.auth.onAuthStateChange((_e, session) => {
@@ -73,7 +81,8 @@ function Index() {
   return (
     <>
       <div className="no-print" style={{ background: "#1C1F22", color: "#9AA0A4", padding: "6px 20px", display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", fontSize: 12 }}>
-        <span style={{ color: estado === "erro" ? "#E8A33D" : "#8FC79A" }}>● {textoEstado}</span>
+        <span style={{ color: estado === "erro" ? "#E8A33D" : "#8FC79A" }}><span aria-hidden="true">● </span>{textoEstado}</span>
+        <span role="status" aria-live="polite" aria-atomic="true" className="sr-only">{anuncioSalvo}</span>
         <span style={{ marginLeft: "auto" }}>{email}</span>
         <button onClick={sair} style={{ background: "transparent", border: "1px solid #4A4F54", color: "#F5F5F2", borderRadius: 3, padding: "3px 8px", cursor: "pointer", fontSize: 12 }}>Sair</button>
       </div>
