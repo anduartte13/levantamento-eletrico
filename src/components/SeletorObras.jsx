@@ -10,7 +10,7 @@ export default function SeletorObras({ atual, onTrocar }) {
   return (
     <div className="no-print" style={{ background: "#2A2E33", color: "#F5F5F2", padding: "8px 20px", display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", fontSize: 13 }}>
       <span style={{ color: "#9AA0A4" }}>Obra:</span>
-      <select
+      <select aria-label="Obra atual"
         value={atual}
         onFocus={recarregar}
         onMouseDown={recarregar}
