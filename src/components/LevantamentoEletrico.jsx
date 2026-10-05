@@ -801,7 +801,7 @@ export default function LevantamentoEletrico() {
       <div
         className="no-print"
         style={{
-          position: "sticky", top: 0, zIndex: 10, background: "var(--ink)", color: "#F5F5F2",
+          position: "relative", background: "var(--ink)", color: "#F5F5F2",
           padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap",
         }}
       >
