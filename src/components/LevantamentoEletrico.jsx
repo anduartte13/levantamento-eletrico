@@ -1614,7 +1614,6 @@ function SeletorBitola({ value, onChange, opcoes, placeholder }) {
           value={value || ""}
           onChange={(e) => onChange(e.target.value)}
           style={{ marginTop: 4 }}
-          autoFocus
         />
       )}
     </>
