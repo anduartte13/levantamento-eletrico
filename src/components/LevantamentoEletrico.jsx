@@ -50,6 +50,10 @@ const TIPOS_INFRA = [
 ];
 
 const BITOLAS_CABO = ["0,5", "0,75", "1", "1,5", "2,5", "4", "6", "10", "16", "25", "35", "50", "70", "95", "120", "150", "185", "240"];
+const TIPOS_MULTIPOLAR = [
+  { value: "pp", label: "Cabo PP (multipolar)", vias: ["2", "3", "4", "5"], bitolas: ["0,75", "1", "1,5", "2,5", "4", "6", "10"], padraoVias: "3", padraoBitola: "1,5" },
+  { value: "shield", label: "Cabo Shield (alarme de incêndio)", vias: ["2", "4"], bitolas: ["0,75", "1", "1,5", "2,5"], padraoVias: "2", padraoBitola: "1,5" },
+];
 const BITOLAS_TERMINAL = ["10mm", "16mm", "25mm", "35mm", "50mm", "70mm", "95mm", "120mm", "150mm", "185mm", "240mm"];
 const OUTRO = "__outro__";
 
@@ -323,6 +327,18 @@ function calcularTomada(trecho, regras) {
   return [];
 }
 
+function calcularMultipolar(trecho, regras) {
+  const tipoObj = TIPOS_MULTIPOLAR.find((t) => t.value === trecho.tipo) || TIPOS_MULTIPOLAR[0];
+  const distancia = Number(trecho.distancia) || 0;
+  const qtd = Number(trecho.quantidade) || 1;
+  const metros = round2((distancia * (1 + regras.perdaCabosPercent / 100) + regras.folgaCaboM) * qtd);
+  const medida = `${trecho.vias}x${trecho.bitola}mm²`;
+  const nome = tipoObj.value === "pp"
+    ? `Cabo PP ${medida} 500V`
+    : `Cabo blindado (shield) para alarme de incêndio ${medida}`;
+  return [{ nome, quantidade: metros, unidade: "m", categoria: "Fios e cabos", grupo: tipoObj.value === "pp" ? `Cabos PP ${medida}` : `Cabos Shield ${medida}` }];
+}
+
 function chaveItem(categoria, nome, unidade) {
   return `${categoria}||${nome.trim().toLowerCase()}||${unidade}`;
 }
@@ -334,6 +350,9 @@ export default function LevantamentoEletrico() {
   const [trechosInfra, setTrechosInfra] = useState([]);
   const [trechosTomada, setTrechosTomada] = useState([]);
   const [trechosTerminal, setTrechosTerminal] = useState([]);
+  const [trechosMultipolar, setTrechosMultipolar] = useState([]);
+  const [formMultipolar, setFormMultipolar] = useState({ tipo: "pp", vias: "3", bitola: "1,5", quantidade: "1" });
+  const [editandoMultipolarId, setEditandoMultipolarId] = useState(null);
   const [regras, setRegras] = useState(REGRAS_PADRAO);
   const [statusAdquiridoCalc, setStatusAdquiridoCalc] = useState({});
   const [loaded, setLoaded] = useState(false);
@@ -388,6 +407,10 @@ export default function LevantamentoEletrico() {
         if (tm) setTrechosTerminal(JSON.parse(tm.value));
       } catch (e) {}
       try {
+        const mp = await storage.get("levantamento:trechosMultipolar");
+        if (mp) setTrechosMultipolar(JSON.parse(mp.value));
+      } catch (e) {}
+      try {
         const rg = await storage.get("levantamento:regras");
         if (rg) setRegras({ ...REGRAS_PADRAO, ...JSON.parse(rg.value) });
       } catch (e) {}
@@ -423,6 +446,10 @@ export default function LevantamentoEletrico() {
     if (!loaded) return;
     storage.set("levantamento:trechosTerminal", JSON.stringify(trechosTerminal)).catch(() => {});
   }, [trechosTerminal, loaded]);
+  useEffect(() => {
+    if (!loaded) return;
+    storage.set("levantamento:trechosMultipolar", JSON.stringify(trechosMultipolar)).catch(() => {});
+  }, [trechosMultipolar, loaded]);
   useEffect(() => {
     if (!loaded) return;
     storage.set("levantamento:regras", JSON.stringify(regras)).catch(() => {});
@@ -463,13 +490,20 @@ export default function LevantamentoEletrico() {
         mapa.get(chave).quantidade = round2(mapa.get(chave).quantidade + it.quantidade);
       }
     }
+    for (const trecho of trechosMultipolar) {
+      for (const it of calcularMultipolar(trecho, regras)) {
+        const chave = chaveItem(it.categoria, it.nome, it.unidade);
+        if (!mapa.has(chave)) mapa.set(chave, { ...it, quantidade: 0 });
+        mapa.get(chave).quantidade = round2(mapa.get(chave).quantidade + it.quantidade);
+      }
+    }
     return Array.from(mapa.entries()).map(([chave, it]) => ({
       ...it,
       id: chave,
       calculado: true,
       adquirido: !!statusAdquiridoCalc[chave],
     }));
-  }, [trechosCircuito, trechosInfra, trechosTomada, trechosTerminal, regras, statusAdquiridoCalc]);
+  }, [trechosCircuito, trechosInfra, trechosTomada, trechosTerminal, trechosMultipolar, regras, statusAdquiridoCalc]);
 
   // Anúncio para leitores de tela quando os resultados calculados mudam
   const [anuncioCalc, setAnuncioCalc] = useState("");
@@ -568,6 +602,26 @@ export default function LevantamentoEletrico() {
 
   function cancelarEdicaoItem() {
     setEditandoItemId(null);
+  }
+
+  function salvarMultipolar() {
+    const distancia = Number(formMultipolar.distancia);
+    if (!distancia || distancia <= 0 || !formMultipolar.vias || !formMultipolar.bitola) return;
+    const quantidade = Number(formMultipolar.quantidade) || 1;
+    const nome = formMultipolar.nome?.trim() || `Trecho ${trechosMultipolar.length + 1}`;
+    const dados = { nome, distancia, quantidade, tipo: formMultipolar.tipo, vias: formMultipolar.vias, bitola: formMultipolar.bitola };
+    if (editandoMultipolarId) {
+      setTrechosMultipolar((prev) => prev.map((t) => (t.id === editandoMultipolarId ? { ...t, ...dados } : t)));
+      setEditandoMultipolarId(null);
+    } else {
+      setTrechosMultipolar((prev) => [...prev, { id: uid(), ...dados }]);
+    }
+    setFormMultipolar({ tipo: dados.tipo, vias: dados.vias, bitola: dados.bitola, quantidade: "1" });
+  }
+
+  function trocarTipoMultipolar(tipo) {
+    const t = TIPOS_MULTIPOLAR.find((x) => x.value === tipo);
+    setFormMultipolar((p) => ({ ...p, tipo, vias: t.padraoVias, bitola: t.padraoBitola }));
   }
 
   function adicionarTrechoCircuito() {
@@ -757,6 +811,7 @@ export default function LevantamentoEletrico() {
     setTrechosInfra([]);
     setTrechosTomada([]);
     setTrechosTerminal([]);
+    setTrechosMultipolar([]);
     setStatusAdquiridoCalc({});
     try {
       await storage.delete("levantamento:meta");
@@ -765,6 +820,7 @@ export default function LevantamentoEletrico() {
       await storage.delete("levantamento:trechosInfra");
       await storage.delete("levantamento:trechosTomada");
       await storage.delete("levantamento:trechosTerminal");
+      await storage.delete("levantamento:trechosMultipolar");
       await storage.delete("levantamento:statusAdquiridoCalc");
     } catch (e) {
       // chaves podem já não existir; sem problema
@@ -1121,6 +1177,72 @@ export default function LevantamentoEletrico() {
                 </button>
                 {editandoCircuitoId && (
                   <button onClick={cancelarEdicaoCircuito} style={{ display: "flex", alignItems: "center", gap: 6, background: "transparent", color: "var(--ink-soft)", border: "1px solid var(--rule)", borderRadius: 3, padding: "8px 12px", fontSize: 13, height: 34 }}>
+                    Cancelar
+                  </button>
+                )}
+              </div>
+            </section>
+
+            {/* Cabos multipolares: PP e Shield */}
+            <section style={{ marginBottom: 32 }}>
+              <div style={{ borderLeft: "4px solid var(--yellow)", paddingLeft: 10, marginBottom: 10 }}>
+                <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 600, margin: 0 }}>Cabos com proteção (PP e Shield)</h2>
+                <p style={{ fontSize: 13, color: "var(--ink-soft)", margin: "2px 0 0" }}>
+                  Cabo PP multipolar (2 a 5 vias) e cabo blindado Shield para alarme de incêndio. A metragem usa a mesma folga e perda dos cabos.
+                </p>
+              </div>
+              {trechosMultipolar.map((t) => {
+                const tipoObj = TIPOS_MULTIPOLAR.find((x) => x.value === t.tipo) || TIPOS_MULTIPOLAR[0];
+                return (
+                  <div key={t.id} style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: 10, alignItems: "center", padding: "9px 0", borderBottom: "1px solid var(--rule)", fontSize: 14, background: editandoMultipolarId === t.id ? "rgba(29,78,102,0.06)" : "transparent" }}>
+                    <div>
+                      <strong>{t.nome}</strong>
+                      <div style={{ fontSize: 12, color: "var(--ink-soft)" }}>
+                        {t.distancia} m · {tipoObj.label} · {t.vias}x{t.bitola} mm²{Number(t.quantidade) > 1 && ` · ${t.quantidade} cabos`}
+                      </div>
+                    </div>
+                    <button className="no-print" onClick={() => { setEditandoMultipolarId(t.id); setFormMultipolar({ nome: t.nome, distancia: String(t.distancia), quantidade: String(t.quantidade || 1), tipo: t.tipo, vias: t.vias, bitola: t.bitola }); }} title="Editar" aria-label={`Editar ${t.nome}`} style={{ background: "transparent", border: "none", color: "var(--ink-soft)", padding: 4, display: "flex" }}>
+                      <Pencil size={15} />
+                    </button>
+                    <button className="no-print" onClick={() => setTrechosMultipolar((prev) => prev.filter((x) => x.id !== t.id))} title="Remover" aria-label={`Remover ${t.nome}`} style={{ background: "transparent", border: "none", color: "var(--ink-soft)", padding: 4, display: "flex" }}>
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                );
+              })}
+              {editandoMultipolarId && (
+                <p style={{ fontSize: 12, color: "var(--blue)", margin: "10px 0 0" }}>Editando trecho — ajuste os campos abaixo e clique em Salvar.</p>
+              )}
+              <div className="no-print" style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
+                <label className="campo" style={{ flex: "2 1 150px" }}>Nome do trecho
+                  <input type="text" placeholder="ex: Motor bomba / Laço alarme" value={formMultipolar.nome || ""} onChange={(e) => setFormMultipolar((p) => ({ ...p, nome: e.target.value }))} />
+                </label>
+                <label className="campo" style={{ width: 95 }}>Distância (m)
+                  <input type="number" step="0.1" min="0" value={formMultipolar.distancia || ""} onChange={(e) => setFormMultipolar((p) => ({ ...p, distancia: e.target.value }))} />
+                </label>
+                <label className="campo" style={{ width: 230 }}>Tipo de cabo
+                  <select value={formMultipolar.tipo} onChange={(e) => trocarTipoMultipolar(e.target.value)}>
+                    {TIPOS_MULTIPOLAR.map((t) => (<option key={t.value} value={t.value}>{t.label}</option>))}
+                  </select>
+                </label>
+                <label className="campo" style={{ width: 80 }}>Vias
+                  <select value={formMultipolar.vias} onChange={(e) => setFormMultipolar((p) => ({ ...p, vias: e.target.value }))}>
+                    {TIPOS_MULTIPOLAR.find((x) => x.value === formMultipolar.tipo).vias.map((v) => (<option key={v} value={v}>{v} vias</option>))}
+                  </select>
+                </label>
+                <label className="campo" style={{ width: 100 }}>Bitola (mm²)
+                  <select value={formMultipolar.bitola} onChange={(e) => setFormMultipolar((p) => ({ ...p, bitola: e.target.value }))}>
+                    {TIPOS_MULTIPOLAR.find((x) => x.value === formMultipolar.tipo).bitolas.map((b) => (<option key={b} value={b}>{b}</option>))}
+                  </select>
+                </label>
+                <label className="campo" style={{ width: 110 }}>Qtd. de cabos
+                  <input type="number" step="1" min="1" placeholder="1" value={formMultipolar.quantidade || ""} onChange={(e) => setFormMultipolar((p) => ({ ...p, quantidade: e.target.value }))} />
+                </label>
+                <button onClick={salvarMultipolar} style={{ display: "flex", alignItems: "center", gap: 6, background: "var(--blue)", color: "white", border: "none", borderRadius: 3, padding: "8px 12px", fontSize: 13, fontWeight: 500, height: 34 }}>
+                  {editandoMultipolarId ? <><Check size={14} /> Salvar</> : <><Plus size={14} /> Calcular</>}
+                </button>
+                {editandoMultipolarId && (
+                  <button onClick={() => { setEditandoMultipolarId(null); setFormMultipolar({ tipo: "pp", vias: "3", bitola: "1,5", quantidade: "1" }); }} style={{ display: "flex", alignItems: "center", gap: 6, background: "transparent", color: "var(--ink-soft)", border: "1px solid var(--rule)", borderRadius: 3, padding: "8px 12px", fontSize: 13, height: 34 }}>
                     Cancelar
                   </button>
                 )}
