@@ -24,7 +24,7 @@ export function listarObras() {
   return lista.map((o) => {
     let nome = "";
     try { nome = JSON.parse(s.getItem(chaveReal(o.id, "levantamento:meta")) || "{}").obra || ""; } catch {}
-    return { id: o.id, nome: nome || "Obra sem nome" };
+    return { id: o.id, nome: nome || "Obra sem nome", pai: o.pai || null, setor: o.setor || "" };
   });
 }
 
@@ -39,8 +39,34 @@ export function selecionarObra(id) {
   ls()?.setItem(ATUAL, id);
 }
 
+function lerLista() {
+  try { return JSON.parse(ls().getItem(LISTA) || "[]"); } catch { return []; }
+}
 function salvarLista(ids) {
-  put(LISTA, JSON.stringify(ids.map((id) => ({ id }))));
+  const antigos = Object.fromEntries(lerLista().map((o) => [o.id, o]));
+  put(LISTA, JSON.stringify(ids.map((x) => (typeof x === "string" ? (antigos[x] || { id: x }) : x))));
+}
+
+// Setores: sub-listas de uma obra. Cada setor guarda seus próprios itens.
+export function listarSetores(obraId) {
+  const lista = listarObras();
+  const pai = lista.find((o) => o.id === obraId)?.pai || obraId;
+  return lista.filter((o) => o.id === pai || o.pai === pai);
+}
+
+export function criarSetor(obraId, nomeSetor) {
+  const lista = listarObras();
+  const pai = lista.find((o) => o.id === obraId)?.pai || obraId;
+  const nomeObra = lista.find((o) => o.id === pai)?.nome || "";
+  const id = Date.now().toString(36);
+  salvarLista([...lerLista(), { id, pai, setor: nomeSetor }]);
+  put(chaveReal(id, "levantamento:meta"), JSON.stringify({ obra: nomeObra }));
+  selecionarObra(id);
+  return id;
+}
+
+export function renomearSetor(id, nomeSetor) {
+  salvarLista(lerLista().map((o) => (o.id === id ? { ...o, setor: nomeSetor } : o)));
 }
 
 function chavesDaObra(id) {
@@ -79,9 +105,12 @@ export function duplicarObra(origem) {
 }
 
 export function excluirObra(id) {
-  const s = ls();
-  for (const k of chavesDaObra(id)) del(k);
-  const resto = listarObras().map((o) => o.id).filter((x) => x !== id);
+  const lista = lerLista();
+  const alvo = lista.find((o) => o.id === id);
+  const ids = alvo?.pai ? [id] : [id, ...lista.filter((o) => o.pai === id).map((o) => o.id)];
+  for (const x of ids) for (const k of chavesDaObra(x)) del(k);
+  const resto = lista.filter((o) => !ids.includes(o.id)).map((o) => o.id);
+  if (alvo?.pai) { salvarLista(resto); selecionarObra(alvo.pai); return; }
   if (!resto.length) resto.push(Date.now().toString(36));
   salvarLista(resto);
   selecionarObra(resto[0]);
