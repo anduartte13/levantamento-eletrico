@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
+import logoAsset from "@/assets/logo-watts.jpg.asset.json";
 import { storage } from "@/lib/local-storage-api";
 import {
   Plus,
@@ -915,6 +916,10 @@ export default function LevantamentoEletrico() {
       {erro && <div className="no-print" style={{ margin: "10px 20px 0", fontSize: 13, color: "var(--red)" }}>{erro}</div>}
 
       <div style={{ maxWidth: 760, margin: "0 auto", padding: "24px 20px 0" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+          <img src={logoAsset.url} alt="Logo Eletron Watts Construções" style={{ width: 64, height: 64, objectFit: "cover", borderRadius: 6 }} />
+          <div style={{ fontWeight: 700, fontSize: 16 }}>Eletron Watts Construções</div>
+        </div>
         <h1 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 22, fontWeight: 600, margin: "0 0 4px" }}>
           Levantamento de material elétrico
         </h1>
@@ -1513,7 +1518,7 @@ export default function LevantamentoEletrico() {
                   <input type="checkbox" checked={soPendentes} onChange={(e) => setSoPendentes(e.target.checked)} /> Só o que falta comprar
                 </label>
                 <button onClick={() => {
-                  const linhas = [`*${obra || "Levantamento de material elétrico"}*`, `${tipoImpressao === "geral" ? "Lista geral" : "Lista por categoria"}${soPendentes ? " — falta comprar" : ""}`, ""];
+                  const linhas = ["*Eletron Watts Construções*", `*${obra || "Levantamento de material elétrico"}*`, `${tipoImpressao === "geral" ? "Lista geral" : "Lista por categoria"}${soPendentes ? " — falta comprar" : ""}`, ""];
                   for (const g of visiveis) {
                     linhas.push(`*${g.titulo}*`);
                     for (const i of g.itens) linhas.push(`${i.adquirido ? "✅" : "⬜"} ${i.nome} — ${String(i.quantidade).replace(".", ",")} ${i.unidade}`);
