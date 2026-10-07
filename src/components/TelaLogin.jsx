@@ -1,4 +1,4 @@
-import logoAsset from "@/assets/logo-watts.jpg.asset.json";
+import logoAsset from "@/assets/logo-leve.png.asset.json";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
@@ -44,9 +44,9 @@ export default function TelaLogin() {
   return (
     <div style={{ minHeight: "100vh", background: "#F5F5F2", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
       <div style={{ background: "#fff", border: "1px solid #DDD", borderRadius: 6, padding: 28, width: "100%", maxWidth: 380 }}>
-        <img src={logoAsset.url} alt="Logo Eletron Watts Construções" style={{ width: 120, height: 120, objectFit: "cover", borderRadius: 8, display: "block", margin: "0 auto 12px" }} />
+        <img src={logoAsset.url} alt="Logo LevE+" style={{ width: 140, height: 140, objectFit: "cover", borderRadius: 12, display: "block", margin: "0 auto 12px" }} />
         <div style={{ textAlign: "center", fontWeight: 700, fontSize: 15, color: "#1C1F22", marginBottom: 8 }}>Eletron Watts Construções</div>
-        <h1 style={{ fontSize: 22, margin: "0 0 4px", color: "#1C1F22" }}>Levantamento Elétrico</h1>
+        <h1 style={{ fontSize: 22, margin: "0 0 4px", color: "#1C1F22" }}>LevE+</h1>
         <p style={{ margin: "0 0 20px", color: "#666", fontSize: 14 }}>
           {modo === "entrar" ? "Entre para ver suas obras em qualquer aparelho." : modo === "criar" ? "Crie sua conta. Suas obras ficam salvas automaticamente." : "Informe seu e-mail para criar uma nova senha."}
         </p>
