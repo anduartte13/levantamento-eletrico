@@ -864,9 +864,29 @@ export default function LevantamentoEletrico() {
         button { cursor: pointer; }
         button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible, textarea:focus-visible, [tabindex]:focus-visible { outline: 3px solid #FFB000 !important; outline-offset: 2px; box-shadow: 0 0 0 5px #1C1F22; position: relative; z-index: 1; }
         label.campo { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--ink-soft); }
+        details.modulo { border: 1px solid #DDD; border-radius: 6px; background: #fff; padding: 10px 12px; }
+        details.modulo > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px; }
+        details.modulo > summary::-webkit-details-marker { display: none; }
+        details.modulo > summary::after { content: "▾"; margin-left: auto; font-size: 18px; transition: transform .2s; }
+        details.modulo:not([open]) > summary::after { transform: rotate(-90deg); }
+        details.modulo[open] > summary { margin-bottom: 10px; }
+        .barra-inferior { display: none; }
+        @media (max-width: 767px) {
+          .abas-topo { display: none !important; }
+          .barra-inferior { display: flex; position: fixed; bottom: 0; left: 0; right: 0; z-index: 50; background: #1C1F22; border-top: 1px solid #4A4F54; padding-bottom: env(safe-area-inset-bottom); }
+          .barra-inferior button { flex: 1; background: transparent; border: none; color: #9AA0A4; padding: 8px 2px; min-height: 56px; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 11px; }
+          .barra-inferior button[aria-pressed="true"] { color: #FFB000; font-weight: 700; }
+          .app-raiz { padding-bottom: 72px; }
+        }
+        @media print { details.modulo { border: none; } details.modulo > summary::after { display: none; } }
         @media print { .no-print { display: none !important; } body { background: white; } }
       `}</style>
 
+      <nav className="barra-inferior no-print" aria-label="Seções do app">
+        {[["categorias","Itens",LayoutGrid],["calculadora","Calculadora",Calculator],["geral","Geral",List],["imprimir","Imprimir",Printer]].map(([v,t,I]) => (
+          <button key={v} aria-pressed={visao === v} onClick={() => { setVisao(v); window.scrollTo(0, 0); }}><I size={20} aria-hidden="true" />{t}</button>
+        ))}
+      </nav>
       <div
         className="no-print"
         style={{
@@ -886,7 +906,7 @@ export default function LevantamentoEletrico() {
             <div style={{ color: "#9AA0A4" }}>Itens</div>
             <div style={{ fontFamily: "'IBM Plex Mono', monospace" }}>{totalAdquiridos}/{totalItens}</div>
           </div>
-          <div role="group" aria-label="Seções do app" style={{ display: "flex", border: "1px solid #4A4F54", borderRadius: 4, overflow: "hidden" }}>
+          <div role="group" aria-label="Seções do app" className="abas-topo" style={{ display: "flex", border: "1px solid #4A4F54", borderRadius: 4, overflow: "hidden" }}>
             <button aria-pressed={visao === "categorias"} onClick={() => setVisao("categorias")} title="Ver por categoria" aria-label="Ver por categoria" style={{ background: visao === "categorias" ? "#F5F5F2" : "transparent", color: visao === "categorias" ? "var(--ink)" : "#F5F5F2", border: "none", padding: "7px 10px", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
               <LayoutGrid size={16} /> Itens
             </button>
@@ -1121,13 +1141,15 @@ export default function LevantamentoEletrico() {
             )}
 
             {/* Circuito elétrico */}
-            <section style={{ marginBottom: 32 }}>
+            <details className="modulo" open style={{ marginBottom: 16 }}>
+              <summary>
               <div style={{ borderLeft: "4px solid var(--yellow)", paddingLeft: 10, marginBottom: 10 }}>
                 <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 600, margin: 0 }}>Circuito elétrico (cabos)</h2>
                 <p style={{ fontSize: 13, color: "var(--ink-soft)", margin: "2px 0 0" }}>
                   Distância linear até o ponto → metragem de fase, neutro e terra. Iluminação: fase vermelha · neutro azul · terra verde. Tomadas/força: fase preta · neutro azul · terra verde.
                 </p>
               </div>
+              </summary>
 
               {trechosCircuito.map((t) => {
                 const tipoObj = TIPOS_CIRCUITO.find((x) => x.value === t.tipo);
@@ -1186,16 +1208,18 @@ export default function LevantamentoEletrico() {
                   </button>
                 )}
               </div>
-            </section>
+            </details>
 
             {/* Cabos multipolares: PP e Shield */}
-            <section style={{ marginBottom: 32 }}>
+            <details className="modulo" style={{ marginBottom: 16 }}>
+              <summary>
               <div style={{ borderLeft: "4px solid var(--yellow)", paddingLeft: 10, marginBottom: 10 }}>
                 <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 600, margin: 0 }}>Cabos com proteção (PP e Shield)</h2>
                 <p style={{ fontSize: 13, color: "var(--ink-soft)", margin: "2px 0 0" }}>
                   Cabo PP multipolar (2 a 5 vias) e cabo blindado Shield para alarme de incêndio. A metragem usa a mesma folga e perda dos cabos.
                 </p>
               </div>
+              </summary>
               {trechosMultipolar.map((t) => {
                 const tipoObj = TIPOS_MULTIPOLAR.find((x) => x.value === t.tipo) || TIPOS_MULTIPOLAR[0];
                 return (
@@ -1252,16 +1276,18 @@ export default function LevantamentoEletrico() {
                   </button>
                 )}
               </div>
-            </section>
+            </details>
 
             {/* Terminais olhal de compressão */}
-            <section style={{ marginBottom: 32 }}>
+            <details className="modulo" style={{ marginBottom: 16 }}>
+              <summary>
               <div style={{ borderLeft: "4px solid var(--yellow)", paddingLeft: 10, marginBottom: 10 }}>
                 <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 600, margin: 0 }}>Terminais olhal de compressão</h2>
                 <p style={{ fontSize: 13, color: "var(--ink-soft)", margin: "2px 0 0" }}>
                   Mesma lógica dos cabos (tipo de circuito + cabos por fase), mas conta os terminais nas duas pontas de cada condutor. Ex: 2x trifásico 185mm → 9 condutores × 2 pontas = 18 terminais.
                 </p>
               </div>
+              </summary>
 
               {trechosTerminal.map((t) => {
                 const tipoObj = TIPOS_CIRCUITO.find((x) => x.value === t.tipo);
@@ -1311,14 +1337,16 @@ export default function LevantamentoEletrico() {
                   </button>
                 )}
               </div>
-            </section>
+            </details>
 
             {/* Infraestrutura */}
-            <section style={{ marginBottom: 32 }}>
+            <details className="modulo" style={{ marginBottom: 16 }}>
+              <summary>
               <div style={{ borderLeft: "4px solid var(--blue)", paddingLeft: 10, marginBottom: 10 }}>
                 <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 600, margin: 0 }}>Infraestrutura</h2>
                 <p style={{ fontSize: 13, color: "var(--ink-soft)", margin: "2px 0 0" }}>Eletroduto, eletrocalha perfurada ou perfilado — distância linear → peças, emendas, suportes, parafusos, porcas, buchas e arruelas.</p>
               </div>
+              </summary>
 
               {trechosInfra.map((t) => {
                 const tipoInfo = TIPOS_INFRA.find((x) => x.value === t.tipo) || TIPOS_INFRA[0];
@@ -1388,16 +1416,18 @@ export default function LevantamentoEletrico() {
                   </button>
                 )}
               </div>
-            </section>
+            </details>
 
             {/* Tomadas */}
-            <section style={{ marginBottom: 32 }}>
+            <details className="modulo" style={{ marginBottom: 16 }}>
+              <summary>
               <div style={{ borderLeft: "4px solid var(--green)", paddingLeft: 10, marginBottom: 10 }}>
                 <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 600, margin: 0 }}>Tomadas</h2>
                 <p style={{ fontSize: 13, color: "var(--ink-soft)", margin: "2px 0 0" }}>
                   Condulete e Aquatic seguem o padrão 2P+T. Industrial sobrepor monofásico usa 2P+T 16A 6H Azul.
                 </p>
               </div>
+              </summary>
 
               {trechosTomada.map((t) => (
                 <div key={t.id} style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: 10, alignItems: "center", padding: "9px 0", borderBottom: "1px solid var(--rule)", fontSize: 14, background: editandoTomadaId === t.id ? "rgba(29,78,102,0.06)" : "transparent" }}>
@@ -1498,7 +1528,7 @@ export default function LevantamentoEletrico() {
                   </button>
                 )}
               </div>
-            </section>
+            </details>
           </div>
         )}
 
