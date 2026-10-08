@@ -38,18 +38,19 @@ export default function TelaLogin() {
     if (r.error) setMsg("Não foi possível entrar com o Google.");
   };
 
-  const campo = { width: "100%", padding: "10px 12px", border: "1px solid #C9CCCF", borderRadius: 4, fontSize: 15, boxSizing: "border-box", marginBottom: 10 };
-  const botao = { width: "100%", padding: "11px", borderRadius: 4, fontSize: 15, cursor: "pointer", border: "none", fontWeight: 600 };
+  const campo = { width: "100%", minHeight: 48, padding: "12px 14px", border: "1px solid #C9CCCF", borderRadius: 8, fontSize: 16, boxSizing: "border-box", marginBottom: 12 };
+  const botao = { width: "100%", minHeight: 48, padding: "12px", borderRadius: 8, fontSize: 16, cursor: "pointer", border: "none", fontWeight: 600 };
 
   return (
-    <div style={{ minHeight: "100vh", background: "#F5F5F2", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-      <div style={{ background: "#fff", border: "1px solid #DDD", borderRadius: 6, padding: 28, width: "100%", maxWidth: 380 }}>
-        <img src={logoAsset.url} alt="Logo LevE+" style={{ width: 140, height: 140, objectFit: "cover", borderRadius: 12, display: "block", margin: "0 auto 12px" }} />
-        <div style={{ textAlign: "center", fontWeight: 700, fontSize: 15, color: "#1C1F22", marginBottom: 8 }}>Eletron Watts Construções</div>
-        <h1 style={{ fontSize: 22, margin: "0 0 4px", color: "#1C1F22" }}>LevE+</h1>
-        <p style={{ margin: "0 0 20px", color: "#666", fontSize: 14 }}>
-          {modo === "entrar" ? "Entre para ver suas obras em qualquer aparelho." : modo === "criar" ? "Crie sua conta. Suas obras ficam salvas automaticamente." : "Informe seu e-mail para criar uma nova senha."}
-        </p>
+    <div style={{ minHeight: "100vh", background: "#1C1F22", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+      <div style={{ background: "#fff", borderRadius: 14, padding: "28px 22px", width: "100%", maxWidth: 380, boxShadow: "0 12px 40px rgba(0,0,0,.35)" }}>
+        <div style={{ textAlign: "center", marginBottom: 22 }}>
+          <img src={logoAsset.url} alt="Logo LevE+" style={{ width: "min(140px, 40vw)", height: "auto", aspectRatio: "1", objectFit: "contain", borderRadius: 16, display: "block", margin: "0 auto 14px" }} />
+          <h1 style={{ fontSize: 32, fontWeight: 800, margin: "0 0 6px", color: "#1C1F22", letterSpacing: "-0.5px" }}>LevE+</h1>
+          <p style={{ margin: 0, color: "#555", fontSize: 15, lineHeight: 1.4 }}>
+            {modo === "entrar" ? "Entre para ver suas obras em qualquer aparelho." : modo === "criar" ? "Crie sua conta. Suas obras ficam salvas automaticamente." : "Informe seu e-mail para criar uma nova senha."}
+          </p>
+        </div>
         <form onSubmit={enviar}>
           <input style={campo} type="email" required placeholder="E-mail" value={email} onChange={(e) => setEmail(e.target.value)} />
           {modo !== "recuperar" && <input style={campo} type="password" required minLength={6} placeholder="Senha (mínimo 6)" value={senha} onChange={(e) => setSenha(e.target.value)} />}

@@ -78,15 +78,16 @@ function Index() {
   const sair = async () => { await pararSync(); await supabase.auth.signOut(); };
   const textoEstado = estado === "salvando" ? "Salvando..." : estado === "erro" ? "Sem conexão — tentando de novo" : "Tudo salvo na nuvem";
 
+  const status = (
+    <span title={textoEstado} style={{ color: estado === "erro" ? "#E8A33D" : "#8FC79A", fontSize: 12, whiteSpace: "nowrap" }}>
+      <span aria-hidden="true">● </span>{estado === "salvando" ? "Salvando..." : estado === "erro" ? "Sem conexão" : "Salvo"}
+      <span role="status" aria-live="polite" aria-atomic="true" className="sr-only">{anuncioSalvo}</span>
+    </span>
+  );
+
   return (
     <>
-      <div className="no-print" style={{ background: "#1C1F22", color: "#9AA0A4", padding: "6px 20px", display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", fontSize: 12 }}>
-        <span style={{ color: estado === "erro" ? "#E8A33D" : "#8FC79A" }}><span aria-hidden="true">● </span>{textoEstado}</span>
-        <span role="status" aria-live="polite" aria-atomic="true" className="sr-only">{anuncioSalvo}</span>
-        <span style={{ marginLeft: "auto" }}>{email}</span>
-        <button onClick={sair} style={{ background: "transparent", border: "1px solid #4A4F54", color: "#F5F5F2", borderRadius: 3, padding: "3px 8px", cursor: "pointer", fontSize: 12 }}>Sair</button>
-      </div>
-      <SeletorObras atual={obra} onTrocar={setObra} />
+      <SeletorObras atual={obra} onTrocar={setObra} status={status} email={email} onSair={sair} />
       <LevantamentoEletrico key={obra} />
     </>
   );
