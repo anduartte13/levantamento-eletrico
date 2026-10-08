@@ -34,8 +34,17 @@ export default function TelaLogin() {
   };
 
   const google = async () => {
-    const r = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
-    if (r.error) setMsg("Não foi possível entrar com o Google.");
+    setMsg("");
+    try {
+      const r = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin, extraParams: { prompt: "select_account" } });
+      if (r.error) {
+        console.error("Google login:", r.error);
+        setMsg("Não foi possível entrar com o Google. Se estiver dentro do WhatsApp ou Instagram, abra o link no Chrome ou Safari e tente de novo.");
+      }
+    } catch (e) {
+      console.error("Google login:", e);
+      setMsg("Não foi possível entrar com o Google. Abra o link no Chrome ou Safari e tente de novo.");
+    }
   };
 
   const campo = { width: "100%", minHeight: 48, padding: "12px 14px", border: "1px solid #C9CCCF", borderRadius: 8, fontSize: 16, boxSizing: "border-box", marginBottom: 12 };
