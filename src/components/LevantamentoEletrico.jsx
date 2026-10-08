@@ -829,7 +829,7 @@ export default function LevantamentoEletrico() {
   }
 
   return (
-    <div
+    <div className="app-raiz"
       style={{
         "--bg": "#F5F5F2",
         "--panel": "#FFFFFF",
