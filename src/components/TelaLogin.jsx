@@ -54,8 +54,9 @@ export default function TelaLogin() {
     <div style={{ minHeight: "100vh", background: "#1C1F22", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
       <div style={{ background: "#fff", borderRadius: 14, padding: "28px 22px", width: "100%", maxWidth: 380, boxShadow: "0 12px 40px rgba(0,0,0,.35)" }}>
         <div style={{ textAlign: "center", marginBottom: 22 }}>
-          <img src={logoAsset.url} alt="Logo LevE+" style={{ width: "min(140px, 40vw)", height: "auto", aspectRatio: "1", objectFit: "contain", borderRadius: 16, display: "block", margin: "0 auto 14px" }} />
-          <h1 style={{ fontSize: 32, fontWeight: 800, margin: "0 0 6px", color: "#1C1F22", letterSpacing: "-0.5px" }}>LevE+</h1>
+          <div aria-hidden="true" style={{ fontSize: 56, lineHeight: 1, margin: "0 auto 10px" }}>⚡💧</div>
+          <h1 style={{ fontSize: 32, fontWeight: 800, margin: "0 0 2px", color: "#1C1F22", letterSpacing: "-0.5px" }}>Eletro<span style={{ color: "#1E88E5" }}>Hidro</span></h1>
+          <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 2, color: "#6B7075", marginBottom: 6 }}>LEVANTAMENTO DE MATERIAIS</div>
           <p style={{ margin: 0, color: "#555", fontSize: 15, lineHeight: 1.4 }}>
             {modo === "entrar" ? "Entre para ver suas obras em qualquer aparelho." : modo === "criar" ? "Crie sua conta. Suas obras ficam salvas automaticamente." : "Informe seu e-mail para criar uma nova senha."}
           </p>
