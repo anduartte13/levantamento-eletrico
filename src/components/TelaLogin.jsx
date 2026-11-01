@@ -1,4 +1,3 @@
-import logoAsset from "@/assets/logo-leve.png.asset.json";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
