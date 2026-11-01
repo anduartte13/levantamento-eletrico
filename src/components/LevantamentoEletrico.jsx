@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import logoAsset from "@/assets/logo-watts.jpg.asset.json";
 import { storage } from "@/lib/local-storage-api";
+import { compararItens, qtdCompra, OPCOES_PERDA, gerarPDF, gerarExcel } from "@/lib/exportar";
 import {
   Plus,
   Trash2,
@@ -217,9 +218,7 @@ function calcularEletroduto(trecho, regras) {
   }
   itens.push(
     { nome: `Abraçadeira tipo D com cunha ${dim}`, quantidade: suportes, unidade: "un", categoria: "Eletrodutos e conexões", grupo },
-    { nome: `Parafuso de fixação (abraçadeira eletroduto ${dim})`, quantidade: parafusos, unidade: "un", categoria: "Eletrodutos e conexões", grupo },
-    { nome: `Porca de fixação (abraçadeira eletroduto ${dim})`, quantidade: porcas, unidade: "un", categoria: "Eletrodutos e conexões", grupo },
-    { nome: `Arruela de fixação (abraçadeira eletroduto ${dim})`, quantidade: arruelas, unidade: "un", categoria: "Eletrodutos e conexões", grupo }
+    { nome: `Parafuso com bucha (abraçadeira eletroduto ${dim})`, quantidade: parafusos, unidade: "un", categoria: "Eletrodutos e conexões", grupo }
   );
   return itens;
 }
@@ -362,6 +361,7 @@ export default function LevantamentoEletrico() {
   const [visao, setVisao] = useState("categorias"); // 'categorias' | 'calculadora' | 'geral' | 'imprimir'
   const [tipoImpressao, setTipoImpressao] = useState("categorias");
   const [soPendentes, setSoPendentes] = useState(false);
+  const [perda, setPerda] = useState(0);
   const [mostrarRegras, setMostrarRegras] = useState(false);
   const [formCircuito, setFormCircuito] = useState({ tipo: "mono", bitola: "2,5", finalidade: "forca", cabosPorFase: "1" });
   const [formInfra, setFormInfra] = useState({ tipo: "eletroduto", dimensao: '3/4"', barraRoscada: "nao" });
@@ -519,7 +519,7 @@ export default function LevantamentoEletrico() {
   }, [itensCalculados]);
 
   const itensCombinados = useMemo(
-    () => [...itensManual, ...itensCalculados].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")),
+    () => [...itensManual, ...itensCalculados].sort(compararItens),
     [itensManual, itensCalculados]
   );
 
@@ -548,7 +548,7 @@ export default function LevantamentoEletrico() {
     return Array.from(grupos.entries())
       .map(([grupo, mapaGrupo]) => ({
         grupo,
-        itens: Array.from(mapaGrupo.values()).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")),
+        itens: Array.from(mapaGrupo.values()).sort(compararItens),
       }))
       .sort((a, b) => a.grupo.localeCompare(b.grupo, "pt-BR"));
   }, [itensCombinados]);
@@ -920,15 +920,6 @@ export default function LevantamentoEletrico() {
               <Printer size={16} /> Imprimir
             </button>
           </div>
-          <button onClick={() => window.print()} title="Imprimir" aria-label="Imprimir" style={{ background: "transparent", border: "1px solid #4A4F54", borderRadius: 3, color: "#F5F5F2", padding: 7, display: "flex" }}>
-            <Printer size={16} />
-          </button>
-          <button onClick={exportarCSV} title="Exportar CSV" aria-label="Exportar CSV" style={{ background: "transparent", border: "1px solid #4A4F54", borderRadius: 3, color: "#F5F5F2", padding: 7, display: "flex" }}>
-            <Download size={16} />
-          </button>
-          <button onClick={limparLevantamento} title="Limpar tudo e começar novo levantamento" aria-label="Limpar tudo e começar novo levantamento" style={{ background: "transparent", border: "1px solid #4A4F54", borderRadius: 3, color: "#F5F5F2", padding: 7, display: "flex" }}>
-            <Eraser size={16} />
-          </button>
         </div>
       </div>
 
@@ -1559,8 +1550,16 @@ export default function LevantamentoEletrico() {
                 }} style={{ marginLeft: "auto", background: "#25D366", color: "#0B2A17", border: "none", borderRadius: 3, padding: "9px 14px", fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
                   <Send size={16} /> Enviar no WhatsApp
                 </button>
-                <button onClick={() => window.print()} style={{ background: "var(--yellow)", color: "var(--ink)", border: "none", borderRadius: 3, padding: "9px 14px", fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
-                  <Printer size={16} /> Gerar PDF
+                <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>Perda
+                  <select value={perda} onChange={(e) => setPerda(Number(e.target.value))} aria-label="Margem de perda">
+                    {OPCOES_PERDA.map((p) => <option key={p} value={p}>{p === 0 ? "Nenhum (0%)" : `${p}%`}</option>)}
+                  </select>
+                </label>
+                <button onClick={() => gerarPDF({ obra, subtitulo: tipoImpressao === "geral" ? "Lista geral" : "Lista por categoria", grupos: visiveis, perda })} style={{ background: "var(--yellow)", color: "var(--ink)", border: "none", borderRadius: 3, padding: "9px 14px", fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
+                  <Printer size={16} /> Baixar PDF
+                </button>
+                <button onClick={() => gerarExcel({ obra, subtitulo: tipoImpressao === "geral" ? "Lista geral" : "Lista por categoria", grupos: visiveis, perda })} style={{ background: "#1D6F42", color: "#F5F5F2", border: "none", borderRadius: 3, padding: "9px 14px", fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
+                  <Download size={16} /> Baixar Excel
                 </button>
               </div>
               <div style={{ background: "white", border: "1px solid #ddd", padding: 20 }}>
@@ -1578,7 +1577,7 @@ export default function LevantamentoEletrico() {
                           <tr key={idx} style={{ borderBottom: "1px solid #eee" }}>
                             <td style={{ padding: "4px 0", width: 22 }}>{i.adquirido ? "☑" : "☐"}</td>
                             <td style={{ padding: "4px 0" }}>{i.nome}</td>
-                            <td style={{ padding: "4px 0", textAlign: "right", whiteSpace: "nowrap" }}>{String(i.quantidade).replace(".", ",")} {i.unidade}</td>
+                            <td style={{ padding: "4px 0", textAlign: "right", whiteSpace: "nowrap" }}>{String(qtdCompra(i, perda)).replace(".", ",")} {i.unidade}{perda > 0 && i.unidade === "m" ? ` (${String(i.quantidade).replace(".", ",")} + ${perda}%)` : ""}</td>
                           </tr>
                         ))}
                       </tbody>

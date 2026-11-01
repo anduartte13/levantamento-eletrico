@@ -14,7 +14,7 @@ import { iniciarSync, pararSync, ouvirEstado } from "@/lib/nuvem-sync";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "LevE+ | Eletron Watts Construções" },
+      { title: "EletroHidro | Eletron Watts Construções" },
       {
         name: "description",
         content:
