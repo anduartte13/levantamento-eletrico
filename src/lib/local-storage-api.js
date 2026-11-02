@@ -130,3 +130,10 @@ export const storage = {
     if (ls()) del(chaveReal(obraAtual(), key));
   },
 };
+
+// Lê uma chave de um setor/obra específico (sem trocar a obra atual).
+export function lerDoSetor(id, key) {
+  const s = ls();
+  if (!s) return null;
+  try { const v = s.getItem(chaveReal(id, key)); return v === null ? null : JSON.parse(v); } catch { return null; }
+}
