@@ -87,7 +87,7 @@ const PADROES_TRIFASICO_INDUSTRIAL = [
 const REGRAS_PADRAO = {
   // cabos
   folgaCaboM: 0.5,
-  perdaCabosPercent: 5,
+  perdaCabosPercent: 0,
   // eletroduto (de zinco)
   barraEletrodutoM: 3,
   espacamentoSuporteM: 1,
@@ -358,7 +358,7 @@ export default function LevantamentoEletrico() {
   const [loaded, setLoaded] = useState(false);
   const [novo, setNovo] = useState({});
   const [erro, setErro] = useState("");
-  const [visao, setVisao] = useState("categorias"); // 'categorias' | 'calculadora' | 'geral' | 'imprimir'
+  const [visao, setVisao] = useState("calculadora"); // 'categorias' | 'calculadora' | 'geral' | 'imprimir'
   const [tipoImpressao, setTipoImpressao] = useState("categorias");
   const [soPendentes, setSoPendentes] = useState(false);
   const [perda, setPerda] = useState(0);
@@ -413,7 +413,7 @@ export default function LevantamentoEletrico() {
       } catch (e) {}
       try {
         const rg = await storage.get("levantamento:regras");
-        if (rg) setRegras({ ...REGRAS_PADRAO, ...JSON.parse(rg.value) });
+        if (rg) setRegras({ ...REGRAS_PADRAO, ...JSON.parse(rg.value), perdaCabosPercent: 0 });
       } catch (e) {}
       try {
         const sa = await storage.get("levantamento:statusAdquiridoCalc");
@@ -883,7 +883,7 @@ export default function LevantamentoEletrico() {
       `}</style>
 
       <nav className="barra-inferior no-print" aria-label="Seções do app">
-        {[["categorias","Itens",LayoutGrid],["calculadora","Calculadora",Calculator],["geral","Geral",List],["imprimir","Imprimir",Printer]].map(([v,t,I]) => (
+        {[["calculadora","Calculadora",Calculator],["categorias","Itens",LayoutGrid],["geral","Geral",List],["imprimir","Imprimir",Printer]].map(([v,t,I]) => (
           <button key={v} aria-pressed={visao === v} onClick={() => { setVisao(v); window.scrollTo(0, 0); }}><I size={20} aria-hidden="true" />{t}</button>
         ))}
       </nav>
@@ -907,11 +907,11 @@ export default function LevantamentoEletrico() {
             <div style={{ fontFamily: "'IBM Plex Mono', monospace" }}>{totalAdquiridos}/{totalItens}</div>
           </div>
           <div role="group" aria-label="Seções do app" className="abas-topo" style={{ display: "flex", border: "1px solid #4A4F54", borderRadius: 4, overflow: "hidden" }}>
-            <button aria-pressed={visao === "categorias"} onClick={() => setVisao("categorias")} title="Ver por categoria" aria-label="Ver por categoria" style={{ background: visao === "categorias" ? "#F5F5F2" : "transparent", color: visao === "categorias" ? "var(--ink)" : "#F5F5F2", border: "none", padding: "7px 10px", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
-              <LayoutGrid size={16} /> Itens
-            </button>
             <button aria-pressed={visao === "calculadora"} onClick={() => setVisao("calculadora")} title="Calculadora de cabos e infraestrutura" aria-label="Calculadora de cabos e infraestrutura" style={{ background: visao === "calculadora" ? "#F5F5F2" : "transparent", color: visao === "calculadora" ? "var(--ink)" : "#F5F5F2", border: "none", padding: "7px 10px", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
               <Calculator size={16} /> Calculadora
+            </button>
+            <button aria-pressed={visao === "categorias"} onClick={() => setVisao("categorias")} title="Ver por categoria" aria-label="Ver por categoria" style={{ background: visao === "categorias" ? "#F5F5F2" : "transparent", color: visao === "categorias" ? "var(--ink)" : "#F5F5F2", border: "none", padding: "7px 10px", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
+              <LayoutGrid size={16} /> Itens
             </button>
             <button aria-pressed={visao === "geral"} onClick={() => setVisao("geral")} title="Ver lista geral" aria-label="Ver lista geral" style={{ background: visao === "geral" ? "#F5F5F2" : "transparent", color: visao === "geral" ? "var(--ink)" : "#F5F5F2", border: "none", padding: "7px 10px", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
               <List size={16} /> Geral
@@ -1036,9 +1036,7 @@ export default function LevantamentoEletrico() {
                 <label className="campo">Folga por circuito (m)
                   <input type="number" step="0.1" value={regras.folgaCaboM} onChange={(e) => atualizarRegra("folgaCaboM", e.target.value)} />
                 </label>
-                <label className="campo">Perda de cabo (%)
-                  <input type="number" step="1" value={regras.perdaCabosPercent} onChange={(e) => atualizarRegra("perdaCabosPercent", e.target.value)} />
-                </label>
+                <p style={{ gridColumn: "1 / -1", fontSize: 11, margin: 0, color: "var(--muted, #6B7075)" }}>A margem de perda dos cabos é escolhida uma única vez na aba Imprimir (0%, 3%, 5% ou 10%).</p>
 
                 <p style={{ gridColumn: "1 / -1", fontSize: 12, fontWeight: 600, margin: "10px 0 -2px", color: "var(--ink)" }}>Eletroduto (zinco)</p>
                 <label className="campo">Barra de eletroduto (m)
