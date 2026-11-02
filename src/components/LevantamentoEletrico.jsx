@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import logoAsset from "@/assets/logo-watts.jpg.asset.json";
-import { storage } from "@/lib/local-storage-api";
+import { storage, listarSetores, obraAtual, lerDoSetor } from "@/lib/local-storage-api";
 import { compararItens, qtdCompra, OPCOES_PERDA, gerarPDF, gerarExcel } from "@/lib/exportar";
 import {
   Plus,
@@ -343,6 +343,46 @@ function chaveItem(categoria, nome, unidade) {
   return `${categoria}||${nome.trim().toLowerCase()}||${unidade}`;
 }
 
+function itensDoSetor(id) {
+  const regras = { ...REGRAS_PADRAO, ...(lerDoSetor(id, "levantamento:regras") || {}), perdaCabosPercent: 0 };
+  const status = lerDoSetor(id, "levantamento:statusAdquiridoCalc") || {};
+  const mapa = new Map();
+  const fontes = [
+    ["levantamento:trechosCircuito", calcularCircuito],
+    ["levantamento:trechosInfra", calcularInfra],
+    ["levantamento:trechosTomada", calcularTomada],
+    ["levantamento:trechosTerminal", calcularTerminal],
+    ["levantamento:trechosMultipolar", calcularMultipolar],
+  ];
+  for (const [k, fn] of fontes) {
+    for (const trecho of lerDoSetor(id, k) || []) {
+      for (const it of fn(trecho, regras)) {
+        const chave = chaveItem(it.categoria, it.nome, it.unidade);
+        if (!mapa.has(chave)) mapa.set(chave, { ...it, quantidade: 0 });
+        mapa.get(chave).quantidade = round2(mapa.get(chave).quantidade + it.quantidade);
+      }
+    }
+  }
+  const calc = Array.from(mapa.entries()).map(([chave, it]) => ({ ...it, id: chave, calculado: true, adquirido: !!status[chave] }));
+  const manuais = (lerDoSetor(id, "levantamento:itens") || []).filter((i) => !i.trechoId && !i.origem && !i.calculado);
+  return [...manuais, ...calc].sort(compararItens);
+}
+
+function agruparGeral(itens) {
+  const grupos = new Map();
+  for (const item of itens) {
+    const grupo = item.grupo || item.categoria || "Outros materiais";
+    if (!grupos.has(grupo)) grupos.set(grupo, new Map());
+    const m = grupos.get(grupo);
+    const chave = `${item.nome.trim().toLowerCase()}__${item.unidade}`;
+    if (!m.has(chave)) m.set(chave, { nome: item.nome.trim(), unidade: item.unidade, quantidade: 0, adquirido: true });
+    const a = m.get(chave);
+    a.quantidade = round2(a.quantidade + item.quantidade);
+    if (!item.adquirido) a.adquirido = false;
+  }
+  return Array.from(grupos.entries()).map(([grupo, m]) => ({ grupo, itens: Array.from(m.values()).sort(compararItens) })).sort((a, b) => a.grupo.localeCompare(b.grupo, "pt-BR"));
+}
+
 export default function LevantamentoEletrico() {
   const [obra, setObra] = useState("");
   const [itensManual, setItensManual] = useState([]);
@@ -361,6 +401,7 @@ export default function LevantamentoEletrico() {
   const [visao, setVisao] = useState("calculadora"); // 'categorias' | 'calculadora' | 'geral' | 'imprimir'
   const [tipoImpressao, setTipoImpressao] = useState("categorias");
   const [soPendentes, setSoPendentes] = useState(false);
+  const [escopoImpressao, setEscopoImpressao] = useState("setor");
   const [perda, setPerda] = useState(0);
   const [mostrarRegras, setMostrarRegras] = useState(false);
   const [formCircuito, setFormCircuito] = useState({ tipo: "mono", bitola: "2,5", finalidade: "forca", cabosPorFase: "1" });
@@ -1523,21 +1564,39 @@ export default function LevantamentoEletrico() {
 
         {visao === "imprimir" && (() => {
           const filtra = (arr) => (soPendentes ? arr.filter((i) => !i.adquirido) : arr);
-          const grupos = tipoImpressao === "geral"
-            ? listaGeralAgrupada.map((g) => ({ titulo: g.grupo, itens: filtra(g.itens) }))
-            : categorias.map((c) => ({ titulo: c, itens: filtra(itensCombinados.filter((i) => i.categoria === c)) }));
+          const gruposDe = (itens, prefixo) => {
+            const cats = Array.from(new Set([...CATEGORIAS_PADRAO, ...itens.map((i) => i.categoria)]));
+            const base = tipoImpressao === "geral"
+              ? agruparGeral(itens).map((g) => ({ titulo: g.grupo, itens: filtra(g.itens) }))
+              : cats.map((c) => ({ titulo: c, itens: filtra(itens.filter((i) => i.categoria === c)) }));
+            return base.map((g) => ({ ...g, titulo: prefixo ? `${prefixo} · ${g.titulo}` : g.titulo }));
+          };
+          let grupos;
+          if (escopoImpressao === "obra") {
+            const atualId = obraAtual();
+            const setores = listarSetores(atualId);
+            grupos = setores.flatMap((st) => gruposDe(st.id === atualId ? itensCombinados : itensDoSetor(st.id), st.setor || "Principal"));
+          } else {
+            grupos = tipoImpressao === "geral"
+              ? listaGeralAgrupada.map((g) => ({ titulo: g.grupo, itens: filtra(g.itens) }))
+              : categorias.map((c) => ({ titulo: c, itens: filtra(itensCombinados.filter((i) => i.categoria === c)) }));
+          }
           const visiveis = grupos.filter((g) => g.itens.length > 0);
+          const subtitulo = `${escopoImpressao === "obra" ? "Obra completa — " : ""}${tipoImpressao === "geral" ? "Lista geral" : "Lista por categoria"}`;
           const opt = (ativo) => ({ background: ativo ? "var(--ink)" : "transparent", color: ativo ? "#F5F5F2" : "var(--ink)", border: "1px solid var(--ink)", borderRadius: 3, padding: "7px 12px", fontSize: 13 });
           return (
             <div>
               <div className="no-print" style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginBottom: 20 }}>
+                <button aria-pressed={escopoImpressao === "setor"} style={opt(escopoImpressao === "setor")} onClick={() => setEscopoImpressao("setor")}>Setor atual</button>
+                <button aria-pressed={escopoImpressao === "obra"} style={opt(escopoImpressao === "obra")} onClick={() => setEscopoImpressao("obra")}>Obra completa</button>
+                <span style={{ width: 1, height: 22, background: "var(--rule)" }} />
                 <button aria-pressed={tipoImpressao === "categorias"} style={opt(tipoImpressao === "categorias")} onClick={() => setTipoImpressao("categorias")}>Por categoria</button>
                 <button aria-pressed={tipoImpressao === "geral"} style={opt(tipoImpressao === "geral")} onClick={() => setTipoImpressao("geral")}>Lista geral</button>
                 <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, marginLeft: 6 }}>
                   <input type="checkbox" checked={soPendentes} onChange={(e) => setSoPendentes(e.target.checked)} /> Só o que falta comprar
                 </label>
                 <button onClick={() => {
-                  const linhas = ["*Eletron Watts Construções*", `*${obra || "Levantamento de material elétrico"}*`, `${tipoImpressao === "geral" ? "Lista geral" : "Lista por categoria"}${soPendentes ? " — falta comprar" : ""}`, ""];
+                  const linhas = ["*Eletron Watts Construções*", `*${obra || "Levantamento de material elétrico"}*`, `${subtitulo}${soPendentes ? " — falta comprar" : ""}`, ""];
                   for (const g of visiveis) {
                     linhas.push(`*${g.titulo}*`);
                     for (const i of g.itens) linhas.push(`${i.adquirido ? "✅" : "⬜"} ${i.nome} — ${String(i.quantidade).replace(".", ",")} ${i.unidade}`);
@@ -1553,17 +1612,17 @@ export default function LevantamentoEletrico() {
                     {OPCOES_PERDA.map((p) => <option key={p} value={p}>{p === 0 ? "Nenhum (0%)" : `${p}%`}</option>)}
                   </select>
                 </label>
-                <button onClick={() => gerarPDF({ obra, subtitulo: tipoImpressao === "geral" ? "Lista geral" : "Lista por categoria", grupos: visiveis, perda })} style={{ background: "var(--yellow)", color: "var(--ink)", border: "none", borderRadius: 3, padding: "9px 14px", fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
+                <button onClick={() => gerarPDF({ obra, subtitulo, grupos: visiveis, perda })} style={{ background: "var(--yellow)", color: "var(--ink)", border: "none", borderRadius: 3, padding: "9px 14px", fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
                   <Printer size={16} /> Baixar PDF
                 </button>
-                <button onClick={() => gerarExcel({ obra, subtitulo: tipoImpressao === "geral" ? "Lista geral" : "Lista por categoria", grupos: visiveis, perda })} style={{ background: "#1D6F42", color: "#F5F5F2", border: "none", borderRadius: 3, padding: "9px 14px", fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
+                <button onClick={() => gerarExcel({ obra, subtitulo, grupos: visiveis, perda })} style={{ background: "#1D6F42", color: "#F5F5F2", border: "none", borderRadius: 3, padding: "9px 14px", fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
                   <Download size={16} /> Baixar Excel
                 </button>
               </div>
               <div style={{ background: "white", border: "1px solid #ddd", padding: 20 }}>
                 <h2 style={{ margin: "0 0 2px", fontSize: 18 }}>{obra || "Levantamento de material elétrico"}</h2>
                 <div style={{ fontSize: 12, color: "#666", marginBottom: 14 }}>
-                  {tipoImpressao === "geral" ? "Lista geral" : "Lista por categoria"}{soPendentes ? " — pendentes" : ""} · {new Date().toLocaleDateString("pt-BR")}
+                  {subtitulo}{soPendentes ? " — pendentes" : ""} · {new Date().toLocaleDateString("pt-BR")}
                 </div>
                 {visiveis.length === 0 && <div style={{ fontSize: 13, color: "#666" }}>Nenhum item para imprimir.</div>}
                 {visiveis.map((g) => (
