@@ -26,6 +26,7 @@ export function compararItens(a, b) {
 // Conjuntos de fixação: Barra roscada/Parafuso -> Porca -> Arruela, juntos por bitola
 const RE_FIX = /^(Barra roscada|Parafuso|Porca|Arruela)\b(.*?)(\d+\/\d+"|M\d+)/i;
 function chaveFixador(nome) {
+  if (/^Parafuso com bucha \(abraçadeira/i.test(nome)) return null;
   const m = nome.match(RE_FIX);
   if (!m) return null;
   const tipo = m[1].toLowerCase();
@@ -35,6 +36,8 @@ function chaveFixador(nome) {
 }
 // Itens fora de conjunto são posicionados junto ao nome da família (Parafuso...)
 function chaveOrdenacao(nome) {
+  const b = nome.match(/^Parafuso com bucha \(abraçadeira eletroduto (.+)\)$/i);
+  if (b) return `Abraçadeira tipo D com cunha ${b[1]} ~`;
   const f = chaveFixador(nome);
   return f ? f.familia : nome;
 }
