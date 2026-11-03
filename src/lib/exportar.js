@@ -14,7 +14,29 @@ export function compararItens(a, b) {
     if (pa !== pb) return pa - pb;
     return ca[2].localeCompare(cb[2], "pt-BR");
   }
-  return a.nome.localeCompare(b.nome, "pt-BR");
+  const fa = chaveFixador(a.nome);
+  const fb = chaveFixador(b.nome);
+  if (fa && fb) {
+    if (fa.familia !== fb.familia) return fa.familia.localeCompare(fb.familia, "pt-BR");
+    return fa.ordem - fb.ordem;
+  }
+  return chaveOrdenacao(a.nome).localeCompare(chaveOrdenacao(b.nome), "pt-BR");
+}
+
+// Conjuntos de fixação: Barra roscada/Parafuso -> Porca -> Arruela, juntos por bitola
+const RE_FIX = /^(Barra roscada|Parafuso|Porca|Arruela)\b(.*?)(\d+\/\d+"|M\d+)/i;
+function chaveFixador(nome) {
+  const m = nome.match(RE_FIX);
+  if (!m) return null;
+  const tipo = m[1].toLowerCase();
+  const rosca = /barra roscada/i.test(nome);
+  const ordem = tipo === "barra roscada" ? 0 : tipo === "parafuso" ? 1 : tipo === "porca" ? 2 : 3;
+  return { familia: `${rosca ? "Barra roscada" : "Parafuso"} ${m[3]}`, ordem };
+}
+// Itens fora de conjunto são posicionados junto ao nome da família (Parafuso...)
+function chaveOrdenacao(nome) {
+  const f = chaveFixador(nome);
+  return f ? f.familia : nome;
 }
 
 export const OPCOES_PERDA = [0, 3, 5, 10];
