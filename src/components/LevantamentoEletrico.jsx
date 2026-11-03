@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import logoAsset from "@/assets/logo-watts.jpg.asset.json";
 import { storage, listarSetores, obraAtual, lerDoSetor } from "@/lib/local-storage-api";
+import DerivacoesIso from "./DerivacoesIso";
 import { compararItens, qtdCompra, OPCOES_PERDA, gerarPDF, gerarExcel } from "@/lib/exportar";
 import {
   Plus,
@@ -1476,6 +1477,12 @@ export default function LevantamentoEletrico() {
                   </button>
                 )}
               </div>
+            </details>
+
+            {/* Derivações isométricas */}
+            <details className="modulo" style={{ marginBottom: 16 }}>
+              <summary>Derivações de eletrocalha e leito (catálogo com desenho)</summary>
+              <DerivacoesIso onAdicionar={(lista) => setItensManual((prev) => [...prev, ...lista.filter((i) => i.quantidade > 0).map((i) => ({ ...i, id: uid(), adquirido: false }))])} />
             </details>
 
             {/* Tomadas */}
