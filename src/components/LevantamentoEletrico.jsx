@@ -56,6 +56,7 @@ const FINALIDADES_CIRCUITO = [
 const TIPOS_INFRA = [
   { value: "eletroduto", label: "Eletroduto", labelDimensao: "Diâmetro", opcoesDimensao: ['1/2"', '3/4"', '1"', '1.1/4"', '1.1/2"', '2"', '2.1/2"', '3"', '4"'] },
   { value: "eletrocalha", label: "Eletrocalha perfurada", labelDimensao: "Dimensão", opcoesDimensao: ["50x50mm", "100x50mm", "150x50mm", "200x50mm", "300x50mm", "100x100mm", "150x100mm", "200x100mm", "300x100mm", "400x100mm", "500x100mm", "600x100mm"] },
+  { value: "aramada", label: "Eletrocalha aramada", labelDimensao: "Dimensão / arame", opcoesDimensao: ['50x50mm arame 3/16"', '100x50mm arame 3/16"', '150x50mm arame 3/16"', '200x50mm arame 3/16"', '300x50mm arame 3/16"', '400x50mm arame 3/16"', '100x100mm arame 3/16"', '200x100mm arame 3/16"', '300x100mm arame 3/16"', '400x100mm arame 3/16"', '500x100mm arame 3/16"', '600x100mm arame 3/16"', '50x50mm arame 1/4"', '100x50mm arame 1/4"', '150x50mm arame 1/4"', '200x50mm arame 1/4"', '300x50mm arame 1/4"', '400x50mm arame 1/4"', '100x100mm arame 1/4"', '200x100mm arame 1/4"', '300x100mm arame 1/4"', '400x100mm arame 1/4"', '500x100mm arame 1/4"', '600x100mm arame 1/4"'] },
   { value: "leito", label: "Leito para cabos", labelDimensao: "Dimensão", opcoesDimensao: ["100x100mm", "150x100mm", "200x100mm", "300x100mm", "400x100mm", "500x100mm", "600x100mm", "800x100mm", "1000x100mm"] },
   { value: "perfilado", label: "Perfilado", labelDimensao: "Dimensão", opcoesDimensao: ["19x38mm", "38x38mm", "38x76mm"] },
 ];
@@ -252,6 +253,24 @@ function calcularEletrocalha(trecho, regras) {
   ];
 }
 
+// Eletrocalha aramada: barras de 3m; arame 3/16" (leve) apoio a cada 1,5m, 1/4" (reforçada) a cada 2,5m
+function calcularAramada(trecho, regras) {
+  const distancia = Number(trecho.distancia) || 0;
+  const pecas = Math.max(1, Math.ceil(distancia * (1 + regras.perdaCalhaPercent / 100) / 3));
+  const emendas = Math.max(pecas - 1, 0);
+  const reforcada = /1\/4"/.test(trecho.dimensao);
+  const suportes = Math.max(2, Math.ceil(distancia / (reforcada ? 2.5 : 1.5)) + 1);
+  const dim = trecho.dimensao;
+  const grupo = `Eletrocalha aramada ${dim}`;
+  return [
+    { nome: `Eletrocalha aramada ${dim} (barra 3m)`, quantidade: pecas, unidade: "un", categoria: "Eletrodutos e conexões", grupo },
+    { nome: `Emenda rápida para eletrocalha aramada`, quantidade: emendas * 2, unidade: "un", categoria: "Eletrodutos e conexões", grupo },
+    { nome: `Suporte de suspensão para eletrocalha aramada ${dim.split(" ")[0]}`, quantidade: suportes, unidade: "un", categoria: "Eletrodutos e conexões", grupo },
+    { nome: `Conector de aterramento para eletrocalha aramada`, quantidade: pecas, unidade: "un", categoria: "Eletrodutos e conexões", grupo },
+    ...itensBarraRoscada(trecho, regras, suportes, grupo),
+  ];
+}
+
 function calcularLeito(trecho, regras) {
   const distancia = Number(trecho.distancia) || 0;
   const distanciaComPerda = distancia * (1 + regras.perdaLeitoPercent / 100);
@@ -295,6 +314,7 @@ function calcularPerfilado(trecho, regras) {
 
 function calcularInfra(trecho, regras) {
   if (trecho.tipo === "eletrocalha") return calcularEletrocalha(trecho, regras);
+  if (trecho.tipo === "aramada") return calcularAramada(trecho, regras);
   if (trecho.tipo === "leito") return calcularLeito(trecho, regras);
   if (trecho.tipo === "perfilado") return calcularPerfilado(trecho, regras);
   return calcularEletroduto(trecho, regras);
