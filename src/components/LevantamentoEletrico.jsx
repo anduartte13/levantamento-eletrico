@@ -28,7 +28,16 @@ const CATEGORIAS_PADRAO = [
   "Luminárias e lâmpadas",
   "Eletrodutos e conexões",
   "Quadros e caixas",
+  "Fixação e parafusos",
   "Outros",
+];
+
+const SUGESTOES_FIXACAO = [
+  'Parabolt (chumbador) 1/4"', 'Parabolt (chumbador) 3/8"',
+  "Bucha S6 com parafuso comum", "Bucha S6 com parafuso fly", "Bucha S8 com parafuso comum", "Bucha S8 com parafuso fly",
+  "Parafuso drywall ponta agulha 3,5x25mm", "Parafuso drywall ponta agulha 3,5x35mm",
+  "Parafuso autobrocante sextavado 4,8x19mm",
+  "Parafuso capetinha flangeado ponta broca 4,2x13mm", "Parafuso capetinha flangeado ponta broca 4,2x19mm",
 ];
 
 const UNIDADES = ["un", "m", "rl", "cx", "pç", "kg"];
@@ -1042,7 +1051,8 @@ export default function LevantamentoEletrico() {
                   {itensCategoria.length === 0 && <p style={{ color: "var(--ink-soft)", fontSize: 13, padding: "10px 0" }}>Nenhum item ainda nesta categoria.</p>}
                 </div>
                 <div className="no-print" style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap", alignItems: "center" }}>
-                  <input type="text" placeholder="Nome do material" value={rascunho.nome || ""} onChange={(e) => updateNovo(categoria, "nome", e.target.value)} onKeyDown={(e) => e.key === "Enter" && addItem(categoria)} style={{ flex: "2 1 180px", minWidth: 140 }} />
+                  {categoria === "Fixação e parafusos" && <datalist id="sug-fixacao">{SUGESTOES_FIXACAO.map((n) => <option key={n} value={n} />)}</datalist>}
+                  <input type="text" list={categoria === "Fixação e parafusos" ? "sug-fixacao" : undefined} placeholder={categoria === "Fixação e parafusos" ? "Toque para ver os parafusos" : "Nome do material"} value={rascunho.nome || ""} onChange={(e) => updateNovo(categoria, "nome", e.target.value)} onKeyDown={(e) => e.key === "Enter" && addItem(categoria)} style={{ flex: "2 1 180px", minWidth: 140 }} />
                   <input type="number" placeholder="Qtd." value={rascunho.quantidade || ""} onChange={(e) => updateNovo(categoria, "quantidade", e.target.value)} onKeyDown={(e) => e.key === "Enter" && addItem(categoria)} style={{ width: 72 }} min="0" />
                   <select value={rascunho.unidade || "un"} onChange={(e) => updateNovo(categoria, "unidade", e.target.value)} style={{ width: 66 }}>
                     {UNIDADES.map((u) => (<option key={u} value={u}>{u}</option>))}
