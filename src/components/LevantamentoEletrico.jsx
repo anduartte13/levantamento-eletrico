@@ -33,6 +33,15 @@ const CATEGORIAS_PADRAO = [
   "Outros",
 ];
 
+const DISCIPLINAS = [
+  { id: "eletrica", nome: "Elétrica", icone: "⚡", categorias: CATEGORIAS_PADRAO },
+  { id: "hidraulica", nome: "Hidráulica", icone: "💧", categorias: ["Água fria (PVC Tigre)", "Água quente (Aquatherm / PPR)", "Esgoto e ventilação (Tigre)", "Registros, metais e caixas"] },
+  { id: "incendio", nome: "Incêndio", icone: "🔥", categorias: ["Tubos e conexões ranhuradas (Glover)", "Bicos sprinkler e canetas", "Extintores", "Sinalização de emergência", "Iluminação de emergência", "Detecção e alarme"] },
+  { id: "gas", nome: "Gás", icone: "🟡", categorias: ["Tubos e conexões de gás", "Reguladores, registros e centrais"] },
+];
+const CATEGORIAS_OUTRAS = DISCIPLINAS.slice(1).flatMap((d) => d.categorias);
+const disciplinaDe = (cat) => (DISCIPLINAS.slice(1).find((d) => d.categorias.includes(cat))?.id) || "eletrica";
+
 const SUGESTOES_FIXACAO = [
   'Parabolt (chumbador) 1/4"', 'Parabolt (chumbador) 3/8"',
   "Bucha S6 com parafuso comum", "Bucha S6 com parafuso fly", "Bucha S8 com parafuso comum", "Bucha S8 com parafuso fly",
@@ -429,6 +438,7 @@ export default function LevantamentoEletrico() {
   const [novo, setNovo] = useState({});
   const [erro, setErro] = useState("");
   const [visao, setVisao] = useState("calculadora"); // 'categorias' | 'calculadora' | 'geral' | 'imprimir'
+  const [disciplina, setDisciplina] = useState("eletrica");
   const [tipoImpressao, setTipoImpressao] = useState("categorias");
   const [soPendentes, setSoPendentes] = useState(false);
   const [escopoImpressao, setEscopoImpressao] = useState("setor");
@@ -596,7 +606,8 @@ export default function LevantamentoEletrico() {
 
   const categorias = [
     ...CATEGORIAS_PADRAO,
-    ...Array.from(new Set(itensCombinados.map((i) => i.categoria).filter((c) => !CATEGORIAS_PADRAO.includes(c)))),
+    ...CATEGORIAS_OUTRAS,
+    ...Array.from(new Set(itensCombinados.map((i) => i.categoria).filter((c) => !CATEGORIAS_PADRAO.includes(c) && !CATEGORIAS_OUTRAS.includes(c)))),
   ];
 
   const totalItens = itensCombinados.length;
@@ -1012,8 +1023,17 @@ export default function LevantamentoEletrico() {
           {visao === "geral" && "Lista consolidada: itens iguais aparecem somados, organizados por bitola/dimensão."}
         </p>
 
+        {visao === "categorias" && (
+          <div className="no-print" role="group" aria-label="Disciplina" style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 18 }}>
+            {DISCIPLINAS.map((d) => (
+              <button key={d.id} type="button" aria-pressed={disciplina === d.id} onClick={() => setDisciplina(d.id)} style={{ flex: "1 1 120px", padding: "10px 8px", borderRadius: 6, fontSize: 14, fontWeight: 600, border: "2px solid var(--blue)", background: disciplina === d.id ? "var(--blue)" : "transparent", color: disciplina === d.id ? "white" : "var(--blue)" }}>
+                {d.icone} {d.nome}
+              </button>
+            ))}
+          </div>
+        )}
         {visao === "categorias" &&
-          categorias.map((categoria) => {
+          categorias.filter((c) => disciplinaDe(c) === disciplina).map((categoria) => {
             const itensCategoria = itensCombinados.filter((i) => i.categoria === categoria);
             const rascunho = novo[categoria] || {};
             return (
