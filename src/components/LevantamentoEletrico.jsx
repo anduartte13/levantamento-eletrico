@@ -1071,6 +1071,27 @@ export default function LevantamentoEletrico() {
                   )}
                   {itensCategoria.length === 0 && <p style={{ color: "var(--ink-soft)", fontSize: 13, padding: "10px 0" }}>Nenhum item ainda nesta categoria.</p>}
                 </div>
+                {categoria === "Fixação e parafusos" && (
+                  <div className="no-print" style={{ marginTop: 10 }}>
+                    <p style={{ fontSize: 12, color: "var(--ink-soft)", margin: "0 0 6px" }}>Toque na peça e depois na quantidade:</p>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      {SUGESTOES_FIXACAO.map((n) => {
+                        const ativo = rascunho.nome === n;
+                        return (
+                          <button key={n} type="button" aria-pressed={ativo} onClick={() => updateNovo(categoria, "nome", n)} style={{ fontSize: 12, padding: "8px 10px", borderRadius: 16, border: "1px solid var(--blue)", background: ativo ? "var(--blue)" : "transparent", color: ativo ? "white" : "var(--blue)", textAlign: "left" }}>
+                            {n}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+                      {[10, 50, 100].map((q) => (
+                        <button key={q} type="button" onClick={() => updateNovo(categoria, "quantidade", String((Number(rascunho.quantidade) || 0) + q))} style={{ fontSize: 13, padding: "8px 12px", borderRadius: 3, border: "1px solid var(--ink-soft)", background: "transparent" }}>+{q}</button>
+                      ))}
+                      <button type="button" onClick={() => updateNovo(categoria, "quantidade", "")} style={{ fontSize: 13, padding: "8px 12px", borderRadius: 3, border: "1px solid var(--ink-soft)", background: "transparent" }}>Zerar</button>
+                    </div>
+                  </div>
+                )}
                 <div className="no-print" style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap", alignItems: "center" }}>
                   {categoria === "Fixação e parafusos" && <datalist id="sug-fixacao">{SUGESTOES_FIXACAO.map((n) => <option key={n} value={n} />)}</datalist>}
                   <input type="text" list={categoria === "Fixação e parafusos" ? "sug-fixacao" : undefined} placeholder={categoria === "Fixação e parafusos" ? "Toque para ver os parafusos" : "Nome do material"} value={rascunho.nome || ""} onChange={(e) => updateNovo(categoria, "nome", e.target.value)} onKeyDown={(e) => e.key === "Enter" && addItem(categoria)} style={{ flex: "2 1 180px", minWidth: 140 }} />
