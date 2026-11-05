@@ -1111,7 +1111,7 @@ export default function LevantamentoEletrico() {
         )}
 
         {visao === "calculadora" && (
-          <CalcExtras disciplina={disciplina} onAdicionar={(lista) => setItensManual((prev) => [...prev, ...lista.filter((i) => i.quantidade > 0).map((i) => ({ ...i, id: uid(), adquirido: false }))])} />
+          <CalcExtras disciplina={disciplina} itensSalvos={itensManual} onRemover={(rid) => setItensManual((prev) => prev.filter((i) => i.ramalId !== rid))} onAdicionar={(lista) => setItensManual((prev) => [...prev, ...lista.filter((i) => i.quantidade > 0).map((i) => ({ ...i, id: uid(), adquirido: false }))])} />
         )}
         {visao === "calculadora" && disciplina === "eletrica" && (
           <div>

@@ -45,10 +45,10 @@ function Modulo({ cor, titulo, sub, children }) {
   );
 }
 
-function Fixacao({ onAdicionar }) {
+function Fixacao({ onAdicionar, categoria = "Fixação e parafusos" }) {
   const [nome, setNome] = useState("");
   const [qtd, setQtd] = useState(0);
-  const add = () => { if (!nome || !qtd) return; onAdicionar([{ nome, quantidade: qtd, unidade: "un", categoria: "Fixação e parafusos" }]); setQtd(0); };
+  const add = () => { if (!nome || !qtd) return; onAdicionar([{ nome, quantidade: qtd, unidade: "un", categoria }]); setQtd(0); };
   return (
     <Modulo cor="var(--ink-soft)" titulo="Fixação e parafusos" sub="Toque na peça, some a quantidade e adicione à lista.">
       {FIXACAO.map(([g, itens]) => (
@@ -110,7 +110,36 @@ function Lista({ itens }) {
   return <ul style={{ fontSize: 13, margin: "6px 0 10px", paddingLeft: 18 }}>{itens.map((i) => <li key={i.nome}>{i.quantidade} {i.unidade} — {i.nome}</li>)}</ul>;
 }
 
-function Sprinklers({ onAdicionar }) {
+const novoId = () => Math.random().toString(36).slice(2, 10);
+
+function NomeTrecho({ valor, onChange, exemplo }) {
+  return <label className="campo" style={{ gridColumn: "1 / -1" }}>Nome do ramal / trecho<input type="text" placeholder={exemplo} value={valor} onChange={(e) => onChange(e.target.value)} /></label>;
+}
+
+function TrechosSalvos({ tipo, itens, onRemover }) {
+  const grupos = new Map();
+  for (const i of itens || []) if (i.ramalTipo === tipo && i.ramalId) {
+    if (!grupos.has(i.ramalId)) grupos.set(i.ramalId, { nome: i.ramal, resumo: i.ramalResumo, n: 0 });
+    grupos.get(i.ramalId).n++;
+  }
+  if (!grupos.size) return null;
+  return (
+    <div style={{ marginTop: 12 }}>
+      <p style={{ fontSize: 12, fontWeight: 600, margin: "0 0 6px" }}>Trechos lançados</p>
+      {[...grupos].map(([id, g]) => (
+        <div key={id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: "1px solid var(--rule)", fontSize: 14 }}>
+          <div><strong>{g.nome}</strong><div style={{ fontSize: 12, color: "var(--ink-soft)" }}>{g.resumo} · {g.n} materiais</div></div>
+          <button type="button" aria-label={`Excluir ${g.nome}`} onClick={() => onRemover(id)} style={{ background: "transparent", border: "1px solid var(--rule)", borderRadius: 3, padding: "6px 10px", fontSize: 12 }}>Excluir</button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const marcar = (lista, tipo, nome, resumo) => { const id = novoId(); return lista.map((i) => ({ ...i, ramalId: id, ramalTipo: tipo, ramal: nome, ramalResumo: resumo })); };
+
+function Sprinklers({ onAdicionar, itensSalvos, onRemover }) {
+  const [nome, setNome] = useState("");
   const [modo, setModo] = useState("area");
   const [area, setArea] = useState(""); const [c, setC] = useState(""); const [l, setL] = useState("");
   const [risco, setRisco] = useState("leve"); const [m2Manual, setM2Manual] = useState("");
@@ -124,6 +153,7 @@ function Sprinklers({ onAdicionar }) {
         <button type="button" aria-pressed={modo === "cxl"} onClick={() => setModo("cxl")} style={btn(modo === "cxl")}>Detalhado (C × L)</button>
       </div>
       <div style={grade}>
+        <NomeTrecho valor={nome} onChange={setNome} exemplo="Ex.: Câmara fria A" />
         {modo === "area" ? (
           <label className="campo">Área (m²)<input type="number" min="0" value={area} onChange={(e) => setArea(e.target.value)} /></label>
         ) : (<>
@@ -147,28 +177,35 @@ function Sprinklers({ onAdicionar }) {
       </div>
       {a > 0 && <p style={{ fontSize: 13, margin: 0 }}>Área: <strong>{a.toFixed(2)} m²</strong></p>}
       <Lista itens={itens} />
-      <button type="button" disabled={!itens.length} onClick={() => onAdicionar(itens)} style={btnAdd}>Adicionar à lista</button>
+      <button type="button" disabled={!itens.length} onClick={() => { const n = nome.trim() || `Ramal ${Date.now() % 1000}`; onAdicionar(marcar(itens, "spk", n, `${a.toFixed(1)} m² · ${itens[0].quantidade} bicos`)); setNome(""); setArea(""); setC(""); setL(""); }} style={btnAdd}>Adicionar à lista</button>
+      <TrechosSalvos tipo="spk" itens={itensSalvos} onRemover={onRemover} />
     </Modulo>
   );
 }
 
-function Grooved({ onAdicionar }) {
+function Grooved({ onAdicionar, itensSalvos, onRemover }) {
+  const [nome, setNome] = useState("");
   const [metros, setMetros] = useState(""); const [bitola, setBitola] = useState('2.1/2"');
   const itens = calcularGrooved({ metros, bitola });
   return (
     <Modulo cor="var(--red)" titulo="Rede ranhurada (Glover)" sub="Metros lineares → barras de 6m, acoplamentos com anel EPDM e suportes a cada 3m.">
       <div style={grade}>
+        <NomeTrecho valor={nome} onChange={setNome} exemplo='Ex.: Prumada principal 4"' />
         <label className="campo">Distância (m)<input type="number" min="0" value={metros} onChange={(e) => setMetros(e.target.value)} /></label>
         <label className="campo">Bitola<select value={bitola} onChange={(e) => setBitola(e.target.value)}>{BITOLAS_GROOVED.map((b) => <option key={b}>{b}</option>)}</select></label>
       </div>
       <Lista itens={itens} />
-      <button type="button" disabled={!itens.length} onClick={() => { onAdicionar(itens); setMetros(""); }} style={btnAdd}>Adicionar à lista</button>
+      <button type="button" disabled={!itens.length} onClick={() => { const n = nome.trim() || `Trecho ${bitola}`; onAdicionar(marcar(itens, "grv", n, `${metros} m · ${bitola}`)); setMetros(""); setNome(""); }} style={btnAdd}>Adicionar à lista</button>
+      <TrechosSalvos tipo="grv" itens={itensSalvos} onRemover={onRemover} />
     </Modulo>
   );
 }
 
-export default function CalcExtras({ disciplina, onAdicionar }) {
-  if (disciplina === "eletrica") return <Fixacao onAdicionar={onAdicionar} />;
-  if (disciplina === "incendio") return (<><Sprinklers onAdicionar={onAdicionar} /><Grooved onAdicionar={onAdicionar} /><Fixacao onAdicionar={onAdicionar} /></>);
+export default function CalcExtras({ disciplina, onAdicionar, itensSalvos, onRemover }) {
+  const [aviso, setAviso] = useState("");
+  const add = (lista) => { onAdicionar(lista); setAviso(`${lista.length} materiais adicionados. Veja na aba Itens.`); setTimeout(() => setAviso(""), 4000); };
+  const msg = <p role="status" aria-live="polite" style={{ fontSize: 13, color: "var(--blue)", fontWeight: 600, minHeight: 18 }}>{aviso}</p>;
+  if (disciplina === "eletrica") return <>{msg}<Fixacao onAdicionar={add} /></>;
+  if (disciplina === "incendio") return (<>{msg}<Sprinklers onAdicionar={add} itensSalvos={itensSalvos} onRemover={onRemover} /><Grooved onAdicionar={add} itensSalvos={itensSalvos} onRemover={onRemover} /><Fixacao onAdicionar={add} categoria="Tubos e conexões ranhuradas (Glover)" /></>);
   return <p style={{ fontSize: 14, color: "var(--ink-soft)" }}>A calculadora desta disciplina chega em breve. Por enquanto, lance os materiais na aba Itens.</p>;
 }
