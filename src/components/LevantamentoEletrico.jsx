@@ -408,10 +408,20 @@ function itensDoSetor(id) {
   return [...manuais, ...calc].sort(compararItens);
 }
 
+function consolidar(itens) {
+  const m = new Map();
+  for (const i of itens) {
+    const k = `${i.nome.trim().toLowerCase()}__${i.unidade}`;
+    if (!m.has(k)) m.set(k, { ...i, nome: i.nome.trim(), quantidade: 0, adquirido: true });
+    const a = m.get(k); a.quantidade = round2(a.quantidade + Number(i.quantidade || 0)); if (!i.adquirido) a.adquirido = false;
+  }
+  return Array.from(m.values()).sort(compararItens);
+}
+
 function agruparGeral(itens) {
   const grupos = new Map();
   for (const item of itens) {
-    const grupo = item.grupo || item.categoria || "Outros materiais";
+    const grupo = item.categoria || "Outros materiais";
     if (!grupos.has(grupo)) grupos.set(grupo, new Map());
     const m = grupos.get(grupo);
     const chave = `${item.nome.trim().toLowerCase()}__${item.unidade}`;
@@ -617,7 +627,7 @@ export default function LevantamentoEletrico() {
   const listaGeralAgrupada = useMemo(() => {
     const grupos = new Map();
     for (const item of itensCombinados) {
-      const grupo = item.grupo || item.categoria || "Outros materiais";
+      const grupo = item.categoria || "Outros materiais";
       if (!grupos.has(grupo)) grupos.set(grupo, new Map());
       const mapaGrupo = grupos.get(grupo);
       const chave = `${item.nome.trim().toLowerCase()}__${item.unidade}`;
@@ -1623,7 +1633,7 @@ export default function LevantamentoEletrico() {
         )}
 
         {visao === "imprimir" && (() => {
-          const filtra = (arr) => (soPendentes ? arr.filter((i) => !i.adquirido) : arr);
+          const filtra = (arr) => consolidar(soPendentes ? arr.filter((i) => !i.adquirido) : arr);
           const gruposDe = (itens, prefixo) => {
             const cats = Array.from(new Set([...CATEGORIAS_PADRAO, ...itens.map((i) => i.categoria)]));
             const base = tipoImpressao === "geral"

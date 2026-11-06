@@ -113,7 +113,7 @@ function Lista({ itens }) {
 const novoId = () => Math.random().toString(36).slice(2, 10);
 
 function NomeTrecho({ valor, onChange, exemplo }) {
-  return <label className="campo" style={{ gridColumn: "1 / -1" }}>Nome do ramal / trecho<input type="text" placeholder={exemplo} value={valor} onChange={(e) => onChange(e.target.value)} /></label>;
+  return <label className="campo">Nome do ramal / trecho<input type="text" placeholder={exemplo} value={valor} onChange={(e) => onChange(e.target.value)} /></label>;
 }
 
 function TrechosSalvos({ tipo, itens, onRemover }) {
@@ -177,7 +177,7 @@ function Sprinklers({ onAdicionar, itensSalvos, onRemover }) {
       </div>
       {a > 0 && <p style={{ fontSize: 13, margin: 0 }}>Área: <strong>{a.toFixed(2)} m²</strong></p>}
       <Lista itens={itens} />
-      <button type="button" disabled={!itens.length} onClick={() => { const n = nome.trim() || `Ramal ${Date.now() % 1000}`; onAdicionar(marcar(itens, "spk", n, `${a.toFixed(1)} m² · ${itens[0].quantidade} bicos`)); setNome(""); setArea(""); setC(""); setL(""); }} style={btnAdd}>Adicionar à lista</button>
+      <button type="button" disabled={!itens.length} onClick={() => { const n = nome.trim() || `Ramal ${Date.now() % 1000}`; onAdicionar(marcar(itens, "spk", n, `${a.toFixed(1)} m² · ${itens[0].quantidade} bicos`)); setNome(""); setArea(""); setC(""); setL(""); }} style={btnAdd}>+ Calcular e adicionar</button>
       <TrechosSalvos tipo="spk" itens={itensSalvos} onRemover={onRemover} />
     </Modulo>
   );
@@ -195,7 +195,7 @@ function Grooved({ onAdicionar, itensSalvos, onRemover }) {
         <label className="campo">Bitola<select value={bitola} onChange={(e) => setBitola(e.target.value)}>{BITOLAS_GROOVED.map((b) => <option key={b}>{b}</option>)}</select></label>
       </div>
       <Lista itens={itens} />
-      <button type="button" disabled={!itens.length} onClick={() => { const n = nome.trim() || `Trecho ${bitola}`; onAdicionar(marcar(itens, "grv", n, `${metros} m · ${bitola}`)); setMetros(""); setNome(""); }} style={btnAdd}>Adicionar à lista</button>
+      <button type="button" disabled={!itens.length} onClick={() => { const n = nome.trim() || `Trecho ${bitola}`; onAdicionar(marcar(itens, "grv", n, `${metros} m · ${bitola}`)); setMetros(""); setNome(""); }} style={btnAdd}>+ Calcular e adicionar</button>
       <TrechosSalvos tipo="grv" itens={itensSalvos} onRemover={onRemover} />
     </Modulo>
   );
