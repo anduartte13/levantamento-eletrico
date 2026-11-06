@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ComplementosIncendio, CalcHidraulica, PecasHidraulica } from "./CalcIncHid.jsx";
+import { ComplementosIncendio, CalcHidraulica, PecasHidraulica, ConexoesHidIso } from "./CalcIncHid.jsx";
 
 const FIXACAO = [
   ["Chumbadores", ['Parabolt (chumbador) 1/4"', 'Parabolt (chumbador) 3/8"']],
@@ -208,6 +208,6 @@ export default function CalcExtras({ disciplina, onAdicionar, itensSalvos, onRem
   const msg = <p role="status" aria-live="polite" style={{ fontSize: 13, color: "var(--blue)", fontWeight: 600, minHeight: 18 }}>{aviso}</p>;
   if (disciplina === "eletrica") return <>{msg}<Fixacao onAdicionar={add} /></>;
   if (disciplina === "incendio") return (<>{msg}<Sprinklers onAdicionar={add} itensSalvos={itensSalvos} onRemover={onRemover} /><Grooved onAdicionar={add} itensSalvos={itensSalvos} onRemover={onRemover} /><Fixacao onAdicionar={add} categoria="Tubos e conexões ranhuradas (Glover)" /><ComplementosIncendio onAdicionar={add} /></>);
-  if (disciplina === "hidraulica") return (<>{msg}<CalcHidraulica onAdicionar={add} itensSalvos={itensSalvos} onRemover={onRemover} /><PecasHidraulica onAdicionar={add} /></>);
+  if (disciplina === "hidraulica") return (<>{msg}<CalcHidraulica onAdicionar={add} itensSalvos={itensSalvos} onRemover={onRemover} /><ConexoesHidIso onAdicionar={add} /><PecasHidraulica onAdicionar={add} /></>);
   return <p style={{ fontSize: 14, color: "var(--ink-soft)" }}>A calculadora desta disciplina chega em breve. Por enquanto, lance os materiais na aba Itens.</p>;
 }

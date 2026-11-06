@@ -200,3 +200,119 @@ const PECAS_HID = [
 export function PecasHidraulica({ onAdicionar }) {
   return <Lancador cor="var(--blue)" titulo="Caixas, reduções e pontos" sub="Peças avulsas do catálogo Tigre com quantidade rápida." grupos={PECAS_HID} categoria="Registros, metais e caixas" onAdicionar={onAdicionar} />;
 }
+
+// ---------- Vista isométrica de conexões hidráulicas ----------
+const C30H = Math.cos(Math.PI / 6);
+const pj = ([x, y, z]) => [(x - y) * C30H, (x + y) * 0.5 - z];
+const linha = (pts) => pts.map((p) => pj(p).map((v) => v.toFixed(1)).join(",")).join(" ");
+const TUBOS = {
+  j90: [[[-40, 0, 0], [0, 0, 0], [0, 40, 0]]],
+  j45: [[[-40, 0, 0], [0, 0, 0], [28, 28, 0]]],
+  te: [[[-40, 0, 0], [40, 0, 0]], [[0, 0, 0], [0, 40, 0]]],
+  jun: [[[-40, 0, 0], [40, 0, 0]], [[0, 0, 0], [26, 30, 0]]],
+  luva: [[[-40, 0, 0], [40, 0, 0]]],
+  red: [[[-40, 0, 0], [0, 0, 0]], [[0, 0, 0], [40, 0, 0]]],
+  cap: [[[-40, 0, 0], [10, 0, 0]]],
+  reg: [[[-40, 0, 0], [40, 0, 0]], [[0, 0, 0], [0, 0, 26]]],
+};
+function DesenhoHid({ id }) {
+  if (id === "cx") {
+    const t = (z) => linha([[-25, -25, z], [25, -25, z], [25, 25, z], [-25, 25, z], [-25, -25, z]]);
+    return (
+      <svg viewBox="-55 -45 110 90" width="100%" height="70" aria-hidden="true">
+        <polygon points={linha([[25, -25, 0], [25, 25, 0], [25, 25, 28], [25, -25, 28]])} fill="#8e9aa6" stroke="#2b3238" strokeWidth="1.2" />
+        <polygon points={linha([[-25, 25, 0], [25, 25, 0], [25, 25, 28], [-25, 25, 28]])} fill="#b3bdc7" stroke="#2b3238" strokeWidth="1.2" />
+        <polygon points={t(28)} fill="#cfd6dd" stroke="#2b3238" strokeWidth="1.2" />
+        <polyline points={linha([[25, 0, 8], [48, 0, 8]])} stroke="#2b3238" strokeWidth="12" strokeLinecap="round" fill="none" />
+        <polyline points={linha([[25, 0, 8], [48, 0, 8]])} stroke="#b3bdc7" strokeWidth="9" strokeLinecap="round" fill="none" />
+      </svg>
+    );
+  }
+  const segs = TUBOS[id];
+  return (
+    <svg viewBox="-60 -40 120 80" width="100%" height="70" aria-hidden="true">
+      {segs.map((s, i) => {
+        const w = id === "red" && i === 1 ? 8 : 13;
+        return <g key={i}>
+          <polyline points={linha(s)} stroke="#2b3238" strokeWidth={w + 3} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+          <polyline points={linha(s)} stroke="#cfd6dd" strokeWidth={w} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+        </g>;
+      })}
+      {id === "reg" && <circle cx={pj([0, 0, 28])[0]} cy={pj([0, 0, 28])[1]} r="8" fill="#8e9aa6" stroke="#2b3238" strokeWidth="1.5" />}
+      {id === "cap" && <circle cx={pj([12, 0, 0])[0]} cy={pj([12, 0, 0])[1]} r="8" fill="#8e9aa6" stroke="#2b3238" strokeWidth="1.5" />}
+    </svg>
+  );
+}
+
+const CONEX_HID = [
+  { id: "j90", curto: "Joelho 90°", nome: "Joelho 90°" },
+  { id: "j45", curto: "Joelho 45°", nome: "Joelho 45°" },
+  { id: "te", curto: "Tê 90°", nome: "Tê 90°" },
+  { id: "jun", curto: "Junção 45°", nome: "Junção simples 45°", esgoto: true },
+  { id: "luva", curto: "Luva", nome: "Luva" },
+  { id: "red", curto: "Redução", nome: "Redução", reducao: true },
+  { id: "cap", curto: "Cap / tampão", nome: "Cap" },
+  { id: "reg", curto: "Registro", nome: "Registro de gaveta bruto", agua: true },
+  { id: "cx", curto: "Caixa sifonada", nome: "Caixa sifonada", caixa: true },
+];
+const CAIXAS = ["100x100x50mm", "150x150x50mm", "150x185x75mm", "250x172x50mm"];
+
+export function ConexoesHidIso({ onAdicionar }) {
+  const [sistema, setSistema] = useState("fria");
+  const [bitola, setBitola] = useState("25mm");
+  const [saida, setSaida] = useState("");
+  const [peca, setPeca] = useState("j90");
+  const [qtd, setQtd] = useState("1");
+  const s = SISTEMAS_HID[sistema];
+  const p = CONEX_HID.find((x) => x.id === peca);
+  const menores = s.bitolas.filter((b) => parseInt(b) < parseInt(bitola));
+  const saidaOk = menores.includes(saida) ? saida : menores[menores.length - 1] || "";
+  const linhaNome = s.tubo.replace("Tubo ", "");
+  const pecas = CONEX_HID.filter((x) => !(x.esgoto && !s.esgoto) && !(x.agua && s.esgoto));
+  const add = () => {
+    const n = Math.max(1, Number(qtd) || 1);
+    let nome;
+    if (p.caixa) nome = `Caixa sifonada ${bitola} Tigre`;
+    else if (p.reducao) { if (!saidaOk) return; nome = `${s.esgoto ? "Redução excêntrica" : "Bucha de redução"} ${bitola} x ${saidaOk} (${linhaNome})`; }
+    else nome = `${p.nome} ${bitola} (${linhaNome})`;
+    const cat = p.caixa || p.agua ? "Registros, metais e caixas" : s.cat;
+    const lista = [{ nome, quantidade: n, unidade: "un", categoria: cat }];
+    if (s.esgoto && !p.caixa) lista.push({ nome: `Anel de borracha esgoto ${bitola}`, quantidade: n * (peca === "jun" || peca === "te" ? 3 : peca === "cap" ? 1 : 2), unidade: "un", categoria: s.cat });
+    onAdicionar(lista);
+  };
+  const sel = { padding: 8, fontSize: 14, minHeight: 40 };
+  return (
+    <Modulo cor="var(--blue)" titulo="Conexões em vista isométrica (Tigre)" sub="Toque no desenho da peça, escolha a bitola e adicione.">
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+        <select aria-label="Sistema" style={sel} value={sistema} onChange={(e) => { setSistema(e.target.value); setBitola(SISTEMAS_HID[e.target.value].bitolas[1]); }}>
+          {Object.entries(SISTEMAS_HID).map(([k, v]) => <option key={k} value={k}>{v.l}</option>)}
+        </select>
+        <select aria-label={p.caixa ? "Medida da caixa" : p.reducao ? "Bitola maior" : "Bitola"} style={sel} value={p.caixa ? (CAIXAS.includes(bitola) ? bitola : "") : bitola} onChange={(e) => setBitola(e.target.value)}>
+          {p.caixa && !CAIXAS.includes(bitola) && <option value="">Medida da caixa</option>}
+          {(p.caixa ? CAIXAS : s.bitolas).map((b) => <option key={b}>{b}</option>)}
+        </select>
+        {p.reducao && (
+          <select aria-label="Bitola menor" style={sel} value={saidaOk} onChange={(e) => setSaida(e.target.value)}>
+            {!menores.length && <option value="">—</option>}
+            {menores.map((b) => <option key={b}>{b}</option>)}
+          </select>
+        )}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(110px, 1fr))", gap: 10, marginBottom: 12 }}>
+        {pecas.map((x) => {
+          const ativo = peca === x.id;
+          return (
+            <button key={x.id} type="button" aria-pressed={ativo} onClick={() => { setPeca(x.id); if (x.caixa) setBitola(CAIXAS[1]); else if (!s.bitolas.includes(bitola)) setBitola(s.bitolas[1]); }}
+              style={{ background: ativo ? "rgba(0,120,215,0.10)" : "transparent", color: "inherit", border: ativo ? "2px solid var(--blue)" : "1px solid var(--rule)", borderRadius: 8, padding: 8, fontSize: 12, fontWeight: ativo ? 700 : 500, minHeight: 104, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+              <DesenhoHid id={x.id} />{x.curto}
+            </button>
+          );
+        })}
+      </div>
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <input type="number" min="1" aria-label="Quantidade" value={qtd} onChange={(e) => setQtd(e.target.value)} style={{ width: 72, minHeight: 40 }} />
+        <button type="button" onClick={add} disabled={p.reducao && !saidaOk} style={btnAdd}>Adicionar peça</button>
+      </div>
+    </Modulo>
+  );
+}
